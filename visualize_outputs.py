@@ -1,386 +1,550 @@
-# At the end of your run_full_analysis.py, add:
+# visualize_outputs.py
+"""
+Visualization for EA vs BPTT on the n-back recall task.
 
-from visualize_outputs import visualize_learning_over_generations, compare_ea_bptt_outputs
+Key figures:
+  1. Output evolution: how network outputs change over training (snapshots)
+  2. Learning dynamics: fitness/accuracy/loss curves
+  3. Sample trial comparison: EA vs BPTT on same trial
+  4. Progressive difficulty: accuracy vs n-back level
+  5. Weight structure: how W_rec changes
+"""
 
-# See EA output over generations
-snapshots = visualize_learning_over_generations(conf)
+import numpy as np
+import os
+import json
 
-# Compare final EA vs BPTT
-results = compare_ea_bptt_outputs(conf)
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.gridspec as gridspec
+    from matplotlib.colors import Normalize
+    PLOT_AVAILABLE = True
+except ImportError:
+    PLOT_AVAILABLE = False
+    print("matplotlib not available")
 
-def visualize_learning_over_generations(conf: AnalysisConfig):
-    """
-    Visualize how network outputs change over training.
-    Saves snapshots at different generations to see learning progression.
-    """
-    rng = np.random.default_rng(conf.seed)
-    N = conf.n_neurons
-    
-    # E/I split
-    n_exc = int(0.8 * N)
-    n_inh = N - n_exc
-    
-    # Task
-    task = WorkingMemoryTask(
-        cue_duration=conf.cue_duration,
-        delay_duration=conf.delay_duration,
-        response_duration=conf.response_duration,
-        response_weight=conf.response_weight,
-    )
-    
-    # Initialize P
-    P_init = np.zeros((N, N), dtype=np.float32)
-    P_init[:n_exc, :n_exc] = 0.16
-    P_init[n_exc:, :n_exc] = 0.30
-    P_init[:n_exc, n_exc:] = 0.40
-    P_init[n_exc:, n_exc:] = 0.20
-    P_init = P_init + 0.05 * rng.standard_normal(P_init.shape).astype(np.float32)
-    P_init = np.clip(P_init, 0.05, 0.95)
-    np.fill_diagonal(P_init, 0.0)
-    P = P_init.copy()
-    
-    # Fixed weights
-    mu, sigma = -0.64, 0.51
-    weight_magnitudes = np.random.lognormal(mu, sigma, (N, N)).astype(np.float32)
-    weight_magnitudes = weight_magnitudes / np.sqrt(N)
-    fixed_weights = weight_magnitudes.copy()
-    fixed_weights[:, n_exc:] = -np.abs(fixed_weights[:, n_exc:])
-    fixed_weights[:, :n_exc] = np.abs(fixed_weights[:, :n_exc])
-    np.fill_diagonal(fixed_weights, 0.0)
-    
-    W_in_fixed = 0.5 * rng.standard_normal((N, conf.obs_dim)).astype(np.float32)
-    W_out_fixed = 0.5 * rng.standard_normal((conf.action_dim, N)).astype(np.float32)
-    W_out_fixed[:, n_exc:] = -np.abs(W_out_fixed[:, n_exc:])
-    W_out_fixed[:, :n_exc] = np.abs(W_out_fixed[:, :n_exc])
-    
-    # Adam state
-    adam_m = np.zeros_like(P)
-    adam_v = np.zeros_like(P)
-    adam_beta1, adam_beta2, adam_eps = 0.9, 0.999, 1e-8
-    
-    # Track snapshots at specific generations
-    snapshot_gens = [0, 25, 50, 100, 150, 200, 250, 299]
-    snapshots = {}  # gen -> {'outputs_pos': [...], 'outputs_neg': [...], 'fitness': ...}
-    
-    half_pop = conf.ea_pop_size // 2
-    eps = 0.02
-    
-    print("Training EA and capturing output snapshots...")
-    
-    for gen in range(conf.ea_generations):
-        # Sample and evaluate population
-        fitness_all = []
-        connectivity_all = []
-        
-        for i in range(conf.ea_pop_size):
-            connectivity = (rng.random(P.shape) < P).astype(np.float32)
-            W_rec = connectivity * fixed_weights
-            np.fill_diagonal(W_rec, 0.0)
-            
-            policy = RSNNPolicy(W_rec, W_in_fixed, W_out_fixed)
-            result = task.evaluate_policy(policy, n_trials=conf.ea_n_eval_trials, rng=rng)
-            
-            fitness_all.append(result['fitness'])
-            connectivity_all.append(connectivity)
-        
-        fitness_all = np.array(fitness_all)
-        connectivity_all = np.array(connectivity_all)
-        
-        # Save snapshot at specific generations
-        if gen in snapshot_gens:
-            # Use deterministic P > 0.5 for snapshot
-            snapshot_connectivity = (P > 0.5).astype(np.float32)
-            W_rec_snapshot = snapshot_connectivity * fixed_weights
-            np.fill_diagonal(W_rec_snapshot, 0.0)
-            policy = RSNNPolicy(W_rec_snapshot, W_in_fixed, W_out_fixed)
-            
-            # Run trials for both cues
-            outputs_pos = run_single_trial(policy, task, cue=+1, rng=rng)
-            outputs_neg = run_single_trial(policy, task, cue=-1, rng=rng)
-            
-            snapshots[gen] = {
-                'outputs_pos': outputs_pos,
-                'outputs_neg': outputs_neg,
-                'fitness': float(fitness_all.mean()),
-                'best_fitness': float(fitness_all.max()),
-                'P_mean': float(P.mean()),
-            }
-            print(f"  Gen {gen}: fitness={fitness_all.mean():+.3f}, captured snapshot")
-        
-        # Update P
-        ranks = np.argsort(np.argsort(fitness_all)).astype(np.float32)
-        ranks = ranks / (len(ranks) - 1) - 0.5
-        
-        grad = np.zeros_like(P)
-        for i in range(conf.ea_pop_size):
-            grad += ranks[i] * (connectivity_all[i] - P)
-        grad = -grad / conf.ea_pop_size
-        
-        t = gen + 1
-        adam_m = adam_beta1 * adam_m + (1 - adam_beta1) * grad
-        adam_v = adam_beta2 * adam_v + (1 - adam_beta2) * (grad ** 2)
-        m_hat = adam_m / (1 - adam_beta1 ** t)
-        v_hat = adam_v / (1 - adam_beta2 ** t)
-        P = P - conf.ea_lr * m_hat / (np.sqrt(v_hat) + adam_eps)
-        P = np.clip(P, eps, 1 - eps)
-        np.fill_diagonal(P, 0.0)
-    
-    # Plot snapshots
-    plot_output_snapshots(snapshots, task, snapshot_gens)
-    
-    return snapshots
+from models.rsnn_policy import RSNNPolicy
+from envs.letter_nback import (
+    LetterNBackTask, SYMBOL_VALUES, SYMBOL_LABELS,
+    decode_output, N_SYMBOLS
+)
+
+try:
+    import torch
+    from models.bptt_rnn import RNNPolicy
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 
-def run_single_trial(policy, task, cue, rng):
-    """Run a single trial and return outputs at each timestep."""
-    inputs, target = task.get_trial(cue=cue, rng=rng)
-    
+# ============================================================================
+# Helpers
+# ============================================================================
+
+def _run_trial(policy, task, rng):
+    """Run one trial, return (outputs, inputs, targets, letters)."""
+    inputs, targets, letters = task.get_trial(rng=rng)
     policy.reset()
     outputs = []
     for t in range(task.total_steps):
         obs = np.array([inputs[t]], dtype=np.float32)
-        action = policy.act(obs)
-        if hasattr(action, '__len__'):
-            outputs.append(float(action[0]))
+        a = policy.act(obs)
+        outputs.append(float(a[0]) if hasattr(a, '__len__') else float(a))
+    return np.array(outputs), inputs, targets, letters
+
+
+def _make_bptt_wrapper(model):
+    """Wrap a torch RNNPolicy for numpy-style act/reset."""
+    class W:
+        def __init__(s, m):
+            s.m = m; s.m.eval(); s.h = None
+        def reset(s):
+            with torch.no_grad():
+                s.h = s.m.h0.detach().clone()
+        def act(s, obs):
+            with torch.no_grad():
+                o = torch.tensor(obs, dtype=torch.float32)
+                s.h = torch.tanh(s.h @ s.m.W_rec.T + o @ s.m.W_in.T)
+                return torch.tanh(s.h @ s.m.W_out.T).numpy()
+    return W(model)
+
+
+# ============================================================================
+# 1. OUTPUT EVOLUTION — the money plot
+#    Shows actual network output on a FIXED trial at different points
+#    during training. You can literally see the network learning to recall.
+# ============================================================================
+
+def plot_output_evolution_from_training(conf, train_fn, method_name="EA",
+                                         snapshot_points=None, seed=42):
+    """
+    Re-train and capture full output traces at snapshot points.
+    This is the most informative plot: you see the raw outputs change.
+
+    For use in a notebook or standalone. For post-hoc plotting from
+    saved weights, use plot_output_evolution_from_snapshots() instead.
+    """
+    if not PLOT_AVAILABLE:
+        return
+
+    # This function is a template — the actual snapshots come from
+    # train_ea / train_bptt which already capture them.
+    # See plot_output_evolution_from_results() below.
+    print("Use plot_output_evolution_from_results() with saved training results.")
+
+
+def plot_output_evolution_from_results(ea_results, bptt_results, conf,
+                                        save_dir=None):
+    """
+    THE KEY FIGURE: For EA and BPTT, show network output on a fixed trial
+    at early/mid/late training, compared to the target.
+
+    Uses the best weights at snapshot generations/iterations.
+    Since we only save the final best weights (not at every snapshot),
+    this shows initial vs final. For full evolution, see the dedicated
+    training-with-snapshots functions.
+    """
+    if not PLOT_AVAILABLE:
+        return
+    if save_dir is None:
+        save_dir = conf.output_dir
+
+    task = LetterNBackTask(n_back=conf.n_back, seq_length=conf.seq_length)
+    rng = np.random.default_rng(42)
+
+    # Build policies: initial and final for each method
+    policies = {}
+    if ea_results:
+        policies['EA init'] = RSNNPolicy(
+            ea_results['W_rec_init'], ea_results['W_in_init'], ea_results['W_out_init'])
+        policies['EA final'] = RSNNPolicy(
+            ea_results['W_rec_final'], ea_results['W_in_final'], ea_results['W_out_final'])
+    if bptt_results and TORCH_AVAILABLE:
+        policies['BPTT init'] = RSNNPolicy(
+            bptt_results['W_rec_init'], bptt_results['W_in_init'], bptt_results['W_out_init'])
+        policies['BPTT final'] = _make_bptt_wrapper(bptt_results['model'])
+
+    n_policies = len(policies)
+    if n_policies == 0:
+        return
+
+    # Fixed trial
+    trial_rng = np.random.default_rng(42)
+    inputs, targets, letters = task.get_trial(rng=trial_rng)
+
+    fig, axes = plt.subplots(n_policies + 1, 1,
+                              figsize=(12, 2.5 * (n_policies + 1)),
+                              sharex=True)
+
+    t = np.arange(task.total_steps)
+    colors_target = plt.cm.Set2(np.linspace(0, 1, N_SYMBOLS))
+
+    # Row 0: Input sequence + target
+    ax = axes[0]
+    ax.step(t, inputs, 'k-', lw=2, where='mid', label='Input (current letter)')
+    ax.step(t, targets, 'g--', lw=2, where='mid', label='Target (recall)')
+    ax.axvspan(0, conf.n_back - 0.5, alpha=0.15, color='gray')
+    # Mark symbol levels
+    for i, sv in enumerate(SYMBOL_VALUES):
+        ax.axhline(sv, color='gray', ls=':', alpha=0.3, lw=0.5)
+    ax.set_ylabel('Letter')
+    ax.set_yticks(list(SYMBOL_VALUES))
+    ax.set_yticklabels(SYMBOL_LABELS)
+    ax.set_title(f'{conf.n_back}-back Recall | Input & Target', fontweight='bold')
+    ax.legend(loc='upper right', fontsize=8)
+    ax.set_ylim(-0.1, 1.2)
+    ax.grid(True, alpha=0.2)
+
+    # Subsequent rows: each policy's output
+    for row, (name, policy) in enumerate(policies.items(), start=1):
+        trial_rng = np.random.default_rng(42)  # same trial every time
+        outputs, _, _, _ = _run_trial(policy, task, trial_rng)
+
+        ax = axes[row]
+        ax.step(t, targets, 'g--', lw=1.5, alpha=0.5, where='mid', label='Target')
+        ax.step(t, outputs, 'b-', lw=2, where='mid', label='Output')
+        ax.axvspan(0, conf.n_back - 0.5, alpha=0.15, color='gray')
+
+        # Color-code correctness
+        for ti in range(conf.n_back, task.total_steps):
+            correct = decode_output(outputs[ti]) == decode_output(targets[ti])
+            color = '#2ecc71' if correct else '#e74c3c'
+            ax.plot(ti, outputs[ti], 'o', color=color, markersize=5, zorder=3)
+
+        for sv in SYMBOL_VALUES:
+            ax.axhline(sv, color='gray', ls=':', alpha=0.3, lw=0.5)
+
+        acc = task.compute_accuracy(outputs, targets)
+        fit = task.evaluate_outputs(outputs, targets)
+        ax.set_ylabel('Letter')
+        ax.set_yticks(list(SYMBOL_VALUES))
+        ax.set_yticklabels(SYMBOL_LABELS)
+        ax.set_title(f'{name}  |  acc={acc:.0%}  fit={fit:+.4f}', fontweight='bold')
+        ax.legend(loc='upper right', fontsize=8)
+        ax.set_ylim(-0.1, 1.2)
+        ax.grid(True, alpha=0.2)
+
+    axes[-1].set_xlabel('Time Step')
+    plt.tight_layout()
+    path = os.path.join(save_dir, 'output_evolution.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {path}")
+
+
+# ============================================================================
+# 2. LEARNING DYNAMICS — fitness, accuracy, loss over training
+# ============================================================================
+
+def plot_learning_dynamics(ea_results, bptt_results, conf, save_dir=None):
+    """
+    3-panel figure: fitness, accuracy, loss/sparsity over training.
+    EA and BPTT on same axes for direct comparison.
+    """
+    if not PLOT_AVAILABLE:
+        return
+    if save_dir is None:
+        save_dir = conf.output_dir
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+
+    # --- Fitness ---
+    ax = axes[0]
+    if ea_results:
+        gens = np.arange(len(ea_results['history']['fitness']))
+        ax.plot(gens, ea_results['history']['fitness'],
+                'b-', alpha=0.3, lw=1, label='EA pop mean')
+        ax.plot(gens, ea_results['history']['best_fitness'],
+                'b-', lw=2, label='EA best-so-far')
+    if bptt_results:
+        iters = np.arange(len(bptt_results['history']['fitness']))
+        # Scale BPTT x-axis to match EA generations
+        if ea_results:
+            scale = len(ea_results['history']['fitness']) / len(iters)
+            bx = iters * scale
         else:
-            outputs.append(float(action))
-    
-    return np.array(outputs)
+            bx = iters
+        ax.plot(bx, bptt_results['history']['fitness'],
+                'r-', lw=2, label='BPTT')
+    ax.set_xlabel('Generation (EA) / Scaled Iter (BPTT)')
+    ax.set_ylabel('Fitness (neg MSE)')
+    ax.set_title('Fitness', fontweight='bold')
+    ax.legend(fontsize=8); ax.grid(True, alpha=0.3)
+
+    # --- Accuracy ---
+    ax = axes[1]
+    if ea_results:
+        ax.plot(gens, ea_results['history']['accuracy'],
+                'b-', lw=2, alpha=0.7, label='EA')
+    if bptt_results:
+        ax.plot(bx, bptt_results['history']['accuracy'],
+                'r-', lw=2, label='BPTT')
+    # Chance line (1/5 = 20%)
+    ax.axhline(1.0 / N_SYMBOLS, color='gray', ls='--', alpha=0.5, label=f'Chance ({1/N_SYMBOLS:.0%})')
+    ax.set_xlabel('Generation / Scaled Iter')
+    ax.set_ylabel('Symbol Recall Accuracy')
+    ax.set_title('Accuracy', fontweight='bold')
+    ax.set_ylim(-0.05, 1.05)
+    ax.legend(fontsize=8); ax.grid(True, alpha=0.3)
+
+    # --- Loss (BPTT) / Weight norm (EA) ---
+    ax = axes[2]
+    if bptt_results:
+        ax.plot(np.arange(len(bptt_results['history']['loss'])),
+                bptt_results['history']['loss'],
+                'r-', lw=1.5, alpha=0.7, label='BPTT loss')
+        ax.set_ylabel('MSE Loss', color='r')
+        ax.tick_params(axis='y', labelcolor='r')
+    if ea_results:
+        ax2 = ax.twinx() if bptt_results else ax
+        # Compute weight norm over training from best_fitness as proxy
+        # (we don't have per-gen weight norms, so show fitness envelope)
+        best = ea_results['history']['best_fitness']
+        ax2.plot(gens, best, 'b-', lw=2, label='EA best fitness')
+        ax2.set_ylabel('EA Best Fitness', color='b')
+        ax2.tick_params(axis='y', labelcolor='b')
+    ax.set_xlabel('Iteration / Generation')
+    ax.set_title('Loss / Fitness Progression', fontweight='bold')
+    ax.grid(True, alpha=0.3)
+
+    task_label = f"{conf.n_back}-back" if conf.task == "nback" else "WM"
+    plt.suptitle(f'{task_label} | {conf.n_neurons}N | Learning Dynamics',
+                 fontsize=13, fontweight='bold')
+    plt.tight_layout()
+    path = os.path.join(save_dir, 'learning_dynamics.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {path}")
 
 
-def plot_output_snapshots(snapshots, task, snapshot_gens):
-    """Plot network outputs across generations."""
-    n_snapshots = len(snapshot_gens)
-    
-    fig, axes = plt.subplots(3, n_snapshots, figsize=(3 * n_snapshots, 10))
-    
-    cue_end = task.cue_duration
-    delay_end = task.cue_duration + task.delay_duration
-    total = task.total_steps
-    
-    for col, gen in enumerate(snapshot_gens):
-        snap = snapshots[gen]
-        t = np.arange(total)
-        
-        # Row 1: Cue = +1
+# ============================================================================
+# 3. MULTI-TRIAL COMPARISON — multiple trials side by side
+# ============================================================================
+
+def plot_multi_trial(ea_results, bptt_results, conf, n_trials=4, save_dir=None):
+    """
+    Show EA and BPTT outputs on multiple different random trials.
+    Reveals whether the model generalizes or just memorizes one pattern.
+    """
+    if not PLOT_AVAILABLE:
+        return
+    if save_dir is None:
+        save_dir = conf.output_dir
+
+    task = LetterNBackTask(n_back=conf.n_back, seq_length=conf.seq_length)
+
+    methods = {}
+    if ea_results:
+        methods['EA'] = RSNNPolicy(
+            ea_results['W_rec_final'], ea_results['W_in_final'], ea_results['W_out_final'])
+    if bptt_results and TORCH_AVAILABLE:
+        methods['BPTT'] = _make_bptt_wrapper(bptt_results['model'])
+
+    n_methods = len(methods)
+    if n_methods == 0:
+        return
+
+    fig, axes = plt.subplots(n_trials, n_methods, figsize=(7 * n_methods, 3 * n_trials),
+                              squeeze=False)
+
+    for trial_idx in range(n_trials):
+        rng = np.random.default_rng(100 + trial_idx)
+
+        for col, (name, policy) in enumerate(methods.items()):
+            trial_rng = np.random.default_rng(100 + trial_idx)  # same trial both methods
+            outputs, inputs, targets, letters = _run_trial(policy, task, trial_rng)
+
+            ax = axes[trial_idx, col]
+            t = np.arange(task.total_steps)
+
+            ax.step(t, targets, 'g--', lw=1.5, alpha=0.6, where='mid', label='Target')
+            ax.step(t, outputs, 'b-', lw=2, where='mid', label='Output')
+            ax.axvspan(0, conf.n_back - 0.5, alpha=0.1, color='gray')
+
+            # Correctness dots
+            for ti in range(conf.n_back, task.total_steps):
+                correct = decode_output(outputs[ti]) == decode_output(targets[ti])
+                ax.plot(ti, outputs[ti], 'o',
+                        color='#2ecc71' if correct else '#e74c3c',
+                        markersize=4, zorder=3)
+
+            for sv in SYMBOL_VALUES:
+                ax.axhline(sv, color='gray', ls=':', alpha=0.2, lw=0.5)
+
+            acc = task.compute_accuracy(outputs, targets)
+            ax.set_ylim(-0.1, 1.2)
+            ax.set_yticks(list(SYMBOL_VALUES))
+            ax.set_yticklabels(SYMBOL_LABELS)
+            ax.grid(True, alpha=0.2)
+
+            if trial_idx == 0:
+                ax.set_title(f'{name}', fontweight='bold', fontsize=12)
+            # Letter sequence annotation
+            letter_str = ''.join(SYMBOL_LABELS[l] for l in letters)
+            ax.text(0.02, 0.95, f'Trial {trial_idx+1}: {letter_str}  acc={acc:.0%}',
+                    transform=ax.transAxes, fontsize=7, va='top',
+                    fontfamily='monospace', alpha=0.7)
+
+            if trial_idx == n_trials - 1:
+                ax.set_xlabel('Step')
+            if col == 0:
+                ax.set_ylabel('Value')
+
+    plt.suptitle(f'{conf.n_back}-back Recall | {conf.n_neurons}N | Multiple Trials',
+                 fontsize=13, fontweight='bold')
+    plt.tight_layout()
+    path = os.path.join(save_dir, 'multi_trial.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {path}")
+
+
+# ============================================================================
+# 4. PROGRESSIVE DIFFICULTY — accuracy vs n-back level
+# ============================================================================
+
+def plot_difficulty_sweep(ea_results, bptt_results, conf,
+                          n_values=(1, 2, 3, 4), n_trials=50, save_dir=None):
+    """
+    Train on one n-back level, test on multiple.
+    Shows where each method breaks down.
+    """
+    if not PLOT_AVAILABLE:
+        return
+    if save_dir is None:
+        save_dir = conf.output_dir
+
+    methods = {}
+    if ea_results:
+        methods['EA'] = RSNNPolicy(
+            ea_results['W_rec_final'], ea_results['W_in_final'], ea_results['W_out_final'])
+    if bptt_results and TORCH_AVAILABLE:
+        methods['BPTT'] = _make_bptt_wrapper(bptt_results['model'])
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
+
+    for name, policy in methods.items():
+        accs, fits = [], []
+        for n in n_values:
+            task = LetterNBackTask(n_back=n, seq_length=conf.seq_length)
+            rng = np.random.default_rng(42)
+            r = task.evaluate_policy(policy, n_trials=n_trials, rng=rng)
+            accs.append(r['accuracy'])
+            fits.append(r['fitness'])
+
+        color = 'b' if name == 'EA' else 'r'
+        axes[0].plot(n_values, accs, f'{color}-o', lw=2, ms=8, label=name)
+        axes[1].plot(n_values, fits, f'{color}-o', lw=2, ms=8, label=name)
+
+    axes[0].axhline(1/N_SYMBOLS, color='gray', ls='--', alpha=0.5, label='Chance')
+    axes[0].set_xlabel('N-back level'); axes[0].set_ylabel('Accuracy')
+    axes[0].set_title('Recall Accuracy vs Difficulty', fontweight='bold')
+    axes[0].set_ylim(-0.05, 1.05); axes[0].set_xticks(list(n_values))
+    axes[0].legend(); axes[0].grid(True, alpha=0.3)
+
+    axes[1].set_xlabel('N-back level'); axes[1].set_ylabel('Fitness (neg MSE)')
+    axes[1].set_title('Fitness vs Difficulty', fontweight='bold')
+    axes[1].set_xticks(list(n_values))
+    axes[1].legend(); axes[1].grid(True, alpha=0.3)
+
+    trained_n = conf.n_back
+    for ax in axes:
+        ax.axvline(trained_n, color='green', ls='--', alpha=0.3, lw=2)
+        ax.text(trained_n + 0.1, ax.get_ylim()[1] * 0.9, f'trained on {trained_n}-back',
+                fontsize=8, color='green')
+
+    plt.suptitle(f'{conf.n_neurons}N | Trained on {trained_n}-back | Tested across levels',
+                 fontweight='bold')
+    plt.tight_layout()
+    path = os.path.join(save_dir, 'difficulty_sweep.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {path}")
+
+
+# ============================================================================
+# 5. WEIGHT STRUCTURE — how recurrent weights change
+# ============================================================================
+
+def plot_weight_analysis(ea_results, bptt_results, conf, save_dir=None):
+    """
+    Weight matrix heatmaps + distribution histograms.
+    Shows what kind of structure each method finds.
+    """
+    if not PLOT_AVAILABLE:
+        return
+    if save_dir is None:
+        save_dir = conf.output_dir
+
+    panels = []
+    if ea_results:
+        panels.append(('EA init', ea_results['W_rec_init']))
+        panels.append(('EA final', ea_results['W_rec_final']))
+    if bptt_results:
+        panels.append(('BPTT init', bptt_results['W_rec_init']))
+        panels.append(('BPTT final', bptt_results['W_rec_final']))
+
+    n = len(panels)
+    if n == 0:
+        return
+
+    fig, axes = plt.subplots(2, n, figsize=(3.5 * n, 7))
+    if n == 1:
+        axes = axes.reshape(-1, 1)
+
+    vmax = max(np.abs(w).max() for _, w in panels)
+
+    for col, (name, W) in enumerate(panels):
+        # Heatmap
         ax = axes[0, col]
-        ax.axvspan(0, cue_end, alpha=0.2, color='blue', label='Cue')
-        ax.axvspan(cue_end, delay_end, alpha=0.2, color='gray', label='Delay')
-        ax.axvspan(delay_end, total, alpha=0.2, color='green', label='Response')
-        ax.plot(t, snap['outputs_pos'], 'b-', linewidth=2)
-        ax.axhline(+1, color='green', linestyle='--', alpha=0.7)
-        ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-        ax.set_ylim(-1.5, 1.5)
-        ax.set_title(f"Gen {gen}\nfit={snap['fitness']:+.3f}", fontsize=10)
-        if col == 0:
-            ax.set_ylabel('Output\n(cue=+1)', fontweight='bold')
-        ax.set_xticks([])
-        
-        # Row 2: Cue = -1
+        im = ax.imshow(W, cmap='RdBu_r', vmin=-vmax, vmax=vmax, aspect='auto')
+        ax.set_title(name, fontweight='bold')
+        ax.set_xlabel('From'); ax.set_ylabel('To')
+
+        # Histogram
         ax = axes[1, col]
-        ax.axvspan(0, cue_end, alpha=0.2, color='blue')
-        ax.axvspan(cue_end, delay_end, alpha=0.2, color='gray')
-        ax.axvspan(delay_end, total, alpha=0.2, color='green')
-        ax.plot(t, snap['outputs_neg'], 'r-', linewidth=2)
-        ax.axhline(-1, color='green', linestyle='--', alpha=0.7)
-        ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-        ax.set_ylim(-1.5, 1.5)
-        if col == 0:
-            ax.set_ylabel('Output\n(cue=-1)', fontweight='bold')
-        ax.set_xticks([])
-        
-        # Row 3: Both overlaid
-        ax = axes[2, col]
-        ax.axvspan(0, cue_end, alpha=0.2, color='blue')
-        ax.axvspan(cue_end, delay_end, alpha=0.2, color='gray')
-        ax.axvspan(delay_end, total, alpha=0.2, color='green')
-        ax.plot(t, snap['outputs_pos'], 'b-', linewidth=2, label='cue=+1')
-        ax.plot(t, snap['outputs_neg'], 'r-', linewidth=2, label='cue=-1')
-        ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-        ax.set_ylim(-1.5, 1.5)
-        ax.set_xlabel('Time')
-        if col == 0:
-            ax.set_ylabel('Both', fontweight='bold')
-            ax.legend(loc='upper left', fontsize=8)
-    
-    plt.suptitle('EA Output Evolution Over Generations\n(Blue=cue phase, Gray=delay, Green=response)', 
-                 fontsize=14, fontweight='bold')
+        w_flat = W.flatten()
+        ax.hist(w_flat, bins=50, color='steelblue', edgecolor='none', alpha=0.8)
+        sparsity = (np.abs(w_flat) < conf.sparsity_threshold).mean()
+        ax.axvline(0, color='red', ls='--', lw=1)
+        ax.set_title(f'sparsity={sparsity:.1%}  std={w_flat.std():.3f}', fontsize=9)
+        ax.set_xlabel('Weight value')
+        ax.set_ylabel('Count')
+
+    fig.colorbar(im, ax=axes[0, :].tolist(), shrink=0.8, label='Weight')
+    plt.suptitle(f'{conf.n_back}-back | {conf.n_neurons}N | Weight Structure',
+                 fontweight='bold')
     plt.tight_layout()
-    plt.savefig('ea_output_evolution.png', dpi=150, bbox_inches='tight')
+    path = os.path.join(save_dir, 'weight_analysis.png')
+    plt.savefig(path, dpi=150, bbox_inches='tight')
     plt.close()
-    print("Saved: ea_output_evolution.png")
+    print(f"Saved: {path}")
 
 
-def compare_ea_bptt_outputs(conf: AnalysisConfig):
-    """
-    Train both EA and BPTT, then compare their outputs side-by-side.
-    """
-    print("=" * 60)
-    print("Comparing EA vs BPTT Outputs")
-    print("=" * 60)
-    
-    task = WorkingMemoryTask(
-        cue_duration=conf.cue_duration,
-        delay_duration=conf.delay_duration,
-        response_duration=conf.response_duration,
-        response_weight=conf.response_weight,
-    )
-    
-    # Train EA
-    print("\nTraining EA...")
-    ea_results = train_ea_hybrid(conf)
-    
-    # Build EA policy from best P
-    N = conf.n_neurons
-    n_exc = int(0.8 * N)
-    final_connectivity = (ea_results['P_final'] > 0.5).astype(np.float32)
-    W_rec_ea = final_connectivity * ea_results['fixed_weights']
-    np.fill_diagonal(W_rec_ea, 0.0)
-    ea_policy = RSNNPolicy(W_rec_ea, ea_results['W_in_final'], ea_results['W_out_final'])
-    
-    # Train BPTT
-    print("\nTraining BPTT...")
-    bptt_results = train_bptt(conf)
-    
-    # Build BPTT policy wrapper
-    class BPTTWrapper:
-        def __init__(self, model):
-            self.model = model
-            self.model.eval()
-            self.h = None
-        
-        def reset(self):
-            with torch.no_grad():
-                self.h = self.model.h0.detach().clone()
-        
-        def act(self, obs):
-            with torch.no_grad():
-                obs_t = torch.tensor(obs, dtype=torch.float32)
-                self.h = torch.tanh(self.h @ self.model.W_rec.T + obs_t @ self.model.W_in.T)
-                action = torch.tanh(self.h @ self.model.W_out.T)
-                return action.numpy()
-    
-    bptt_policy = BPTTWrapper(bptt_results['model'])
-    
-    # Run trials
-    rng = np.random.default_rng(conf.seed + 999)
-    
-    ea_out_pos = run_single_trial(ea_policy, task, cue=+1, rng=rng)
-    ea_out_neg = run_single_trial(ea_policy, task, cue=-1, rng=rng)
-    bptt_out_pos = run_single_trial(bptt_policy, task, cue=+1, rng=rng)
-    bptt_out_neg = run_single_trial(bptt_policy, task, cue=-1, rng=rng)
-    
-    # Plot comparison
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    
-    cue_end = task.cue_duration
-    delay_end = task.cue_duration + task.delay_duration
-    total = task.total_steps
-    t = np.arange(total)
-    
-    # EA outputs
-    ax = axes[0, 0]
-    ax.axvspan(0, cue_end, alpha=0.2, color='blue', label='Cue')
-    ax.axvspan(cue_end, delay_end, alpha=0.2, color='gray', label='Delay')
-    ax.axvspan(delay_end, total, alpha=0.2, color='green', label='Response')
-    ax.plot(t, ea_out_pos, 'b-', linewidth=2, label='cue=+1')
-    ax.plot(t, ea_out_neg, 'r-', linewidth=2, label='cue=-1')
-    ax.axhline(+1, color='blue', linestyle='--', alpha=0.5)
-    ax.axhline(-1, color='red', linestyle='--', alpha=0.5)
-    ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_xlabel('Time Step')
-    ax.set_ylabel('Output')
-    ax.set_title(f'EA (Hybrid)\nFitness: {ea_results["best_fitness"]:.3f}', fontsize=12, fontweight='bold')
-    ax.legend(loc='upper right')
-    ax.grid(True, alpha=0.3)
-    
-    # BPTT outputs
-    ax = axes[0, 1]
-    ax.axvspan(0, cue_end, alpha=0.2, color='blue')
-    ax.axvspan(cue_end, delay_end, alpha=0.2, color='gray')
-    ax.axvspan(delay_end, total, alpha=0.2, color='green')
-    ax.plot(t, bptt_out_pos, 'b-', linewidth=2, label='cue=+1')
-    ax.plot(t, bptt_out_neg, 'r-', linewidth=2, label='cue=-1')
-    ax.axhline(+1, color='blue', linestyle='--', alpha=0.5)
-    ax.axhline(-1, color='red', linestyle='--', alpha=0.5)
-    ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_xlabel('Time Step')
-    ax.set_ylabel('Output')
-    ax.set_title(f'BPTT\nFitness: {bptt_results["history"]["fitness"][-1]:.3f}', fontsize=12, fontweight='bold')
-    ax.legend(loc='upper right')
-    ax.grid(True, alpha=0.3)
-    
-    # Response phase zoom - EA
-    ax = axes[1, 0]
-    resp_t = np.arange(task.response_duration)
-    width = 0.35
-    ax.bar(resp_t - width/2, ea_out_pos[delay_end:], width, label='cue=+1', color='blue', alpha=0.7)
-    ax.bar(resp_t + width/2, ea_out_neg[delay_end:], width, label='cue=-1', color='red', alpha=0.7)
-    ax.axhline(+1, color='blue', linestyle='--', alpha=0.5)
-    ax.axhline(-1, color='red', linestyle='--', alpha=0.5)
-    ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_xlabel('Response Step')
-    ax.set_ylabel('Output')
-    ax.set_title('EA: Response Phase', fontweight='bold')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    # Response phase zoom - BPTT
-    ax = axes[1, 1]
-    ax.bar(resp_t - width/2, bptt_out_pos[delay_end:], width, label='cue=+1', color='blue', alpha=0.7)
-    ax.bar(resp_t + width/2, bptt_out_neg[delay_end:], width, label='cue=-1', color='red', alpha=0.7)
-    ax.axhline(+1, color='blue', linestyle='--', alpha=0.5)
-    ax.axhline(-1, color='red', linestyle='--', alpha=0.5)
-    ax.axhline(0, color='black', linestyle='-', alpha=0.3)
-    ax.set_ylim(-1.5, 1.5)
-    ax.set_xlabel('Response Step')
-    ax.set_ylabel('Output')
-    ax.set_title('BPTT: Response Phase', fontweight='bold')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    plt.suptitle('EA vs BPTT: Network Outputs on Working Memory Task', fontsize=14, fontweight='bold')
-    plt.tight_layout()
-    plt.savefig('ea_vs_bptt_outputs.png', dpi=150, bbox_inches='tight')
-    plt.close()
-    print("\nSaved: ea_vs_bptt_outputs.png")
-    
-    # Print summary
-    print("\n" + "=" * 60)
-    print("OUTPUT SUMMARY")
-    print("=" * 60)
-    print(f"\nEA Response (cue=+1):  mean={ea_out_pos[delay_end:].mean():+.3f}")
-    print(f"EA Response (cue=-1):  mean={ea_out_neg[delay_end:].mean():+.3f}")
-    print(f"BPTT Response (cue=+1): mean={bptt_out_pos[delay_end:].mean():+.3f}")
-    print(f"BPTT Response (cue=-1): mean={bptt_out_neg[delay_end:].mean():+.3f}")
-    
-    return {
-        'ea': {'pos': ea_out_pos, 'neg': ea_out_neg, 'fitness': ea_results['best_fitness']},
-        'bptt': {'pos': bptt_out_pos, 'neg': bptt_out_neg, 'fitness': bptt_results['history']['fitness'][-1]},
-    }
+# ============================================================================
+# MASTER: generate all figures
+# ============================================================================
+
+def generate_all_figures(ea_results, bptt_results, conf):
+    """Generate the full figure set from training results."""
+    os.makedirs(conf.output_dir, exist_ok=True)
+
+    print(f"\nGenerating figures in {conf.output_dir}/")
+    print("-" * 40)
+
+    plot_output_evolution_from_results(ea_results, bptt_results, conf)
+    plot_learning_dynamics(ea_results, bptt_results, conf)
+    plot_multi_trial(ea_results, bptt_results, conf, n_trials=4)
+    plot_difficulty_sweep(ea_results, bptt_results, conf, n_values=(1, 2, 3, 4))
+    plot_weight_analysis(ea_results, bptt_results, conf)
+
+    print("-" * 40)
+    print("All figures generated.")
 
 
-# Quick runner
+# ============================================================================
+# Standalone usage: load saved results and regenerate plots
+# ============================================================================
+
 if __name__ == "__main__":
-    from run_full_analysis import AnalysisConfig, train_ea_hybrid, train_bptt, RSNNPolicy
-    import torch
-    
-    conf = AnalysisConfig(
-        n_neurons=256,
-        cue_duration=5,
-        delay_duration=10,
-        response_duration=10,
-        response_weight=1.0,  # 100% on response
-        ea_generations=300,
-        ea_pop_size=128,
-        seed=42,
-    )
-    
-    # Option 1: See EA learning over time
-    # snapshots = visualize_learning_over_generations(conf)
-    
-    # Option 2: Compare final EA vs BPTT
-    # results = compare_ea_bptt_outputs(conf)
+    import argparse
+    p = argparse.ArgumentParser()
+    p.add_argument('--results-dir', type=str, default='results/nback_32n')
+    args = p.parse_args()
+
+    d = args.results_dir
+
+    # Load config
+    with open(os.path.join(d, 'config.json')) as f:
+        conf_dict = json.load(f)
+
+    from run_full_analysis import Config
+    conf = Config(**conf_dict)
+
+    # Load EA
+    ea = dict(np.load(os.path.join(d, 'ea_weights.npz')))
+    with open(os.path.join(d, 'ea_history.json')) as f:
+        ea_hist = json.load(f)
+    ea['history'] = ea_hist['history']
+    ea['snapshots'] = ea_hist.get('snapshots', {})
+    ea['best_fitness'] = max(ea['history']['best_fitness'])
+
+    # Load BPTT
+    bptt = None
+    bptt_path = os.path.join(d, 'bptt_weights.npz')
+    if os.path.exists(bptt_path):
+        bptt = dict(np.load(bptt_path))
+        with open(os.path.join(d, 'bptt_history.json')) as f:
+            bptt_hist = json.load(f)
+        bptt['history'] = bptt_hist['history']
+        bptt['snapshots'] = bptt_hist.get('snapshots', {})
+        # Rebuild model from saved weights
+        if TORCH_AVAILABLE:
+            model = RNNPolicy(conf.n_neurons, conf.obs_dim, conf.action_dim)
+            with torch.no_grad():
+                model.W_rec.copy_(torch.tensor(bptt['W_rec_final']))
+                model.W_in.copy_(torch.tensor(bptt['W_in_final']))
+                model.W_out.copy_(torch.tensor(bptt['W_out_final']))
+            bptt['model'] = model
+
+    generate_all_figures(ea, bptt, conf)
