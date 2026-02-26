@@ -64,12 +64,16 @@ class Config:
     delay_duration: int = 10
     response_duration: int = 10
 
-    # EA
+    # EA (Evolution Strategy — OpenAI-ES)
     ea_pop_size: int = 128
     ea_generations: int = 300
     ea_lr: float = 0.03
-    ea_sigma: float = 0.1
+    ea_sigma: float = 0.02      # tuned: was 0.1, smaller = cleaner gradient estimate
     ea_n_eval_trials: int = 20
+
+    # GA (Genetic Algorithm — tournament + crossover + mutation)
+    ga_mutation_rate: float = 0.05
+    ga_mutation_std: float = 0.3
 
     # BPTT
     bptt_iterations: int = 1000
@@ -476,7 +480,13 @@ def save_results(ea, bptt, conf: Config):
 # ============================================================================
 
 def run(task="nback", n_neurons=32, output_dir=None,
-        ea_only=False, bptt_only=False, **overrides):
+        method="es", bptt=True, **overrides):
+    """
+    Run experiment.
+
+    method: "es" (OpenAI-ES), "ga" (genetic algorithm), or "both"
+    bptt:   whether to also train BPTT for comparison
+    """
     if output_dir is None:
         output_dir = f"results/{task}_{n_neurons}n"
 
@@ -493,16 +503,27 @@ def run(task="nback", n_neurons=32, output_dir=None,
               f"response={conf.response_duration}")
 
     ea_results = None
-    if not bptt_only:
+    ga_results = None
+
+    if method in ("es", "both"):
         print("\n" + "-" * 60)
-        print("Training EA...")
+        print("Training ES (OpenAI Evolution Strategy)...")
         print("-" * 60)
         t0 = time.time()
         ea_results = train_ea(conf)
-        print(f"EA time: {time.time() - t0:.1f}s\n")
+        print(f"ES time: {time.time() - t0:.1f}s\n")
+
+    if method in ("ga", "both"):
+        print("-" * 60)
+        print("Training GA (Genetic Algorithm)...")
+        print("-" * 60)
+        from ea_genetic import train_ga
+        t0 = time.time()
+        ga_results = train_ga(conf)
+        print(f"GA time: {time.time() - t0:.1f}s\n")
 
     bptt_results = None
-    if not ea_only:
+    if bptt:
         print("-" * 60)
         print("Training BPTT...")
         print("-" * 60)
@@ -511,32 +532,37 @@ def run(task="nback", n_neurons=32, output_dir=None,
         if bptt_results:
             print(f"BPTT time: {time.time() - t0:.1f}s\n")
 
-    if ea_results:
-        save_results(ea_results, bptt_results, conf)
+    # Use whichever EA ran (prefer GA if both)
+    primary_ea = ga_results if ga_results else ea_results
+
+    if primary_ea:
+        save_results(primary_ea, bptt_results, conf)
 
     # Generate all figures
     try:
         from visualize_outputs import generate_all_figures
-        generate_all_figures(ea_results, bptt_results, conf)
+        generate_all_figures(primary_ea, bptt_results, conf)
     except ImportError:
-        # Fallback to inline plots
-        if ea_results:
-            plot_learning_curves(ea_results, bptt_results, conf)
-            plot_weight_comparison(ea_results, bptt_results, conf)
-            plot_sample_trial(ea_results, bptt_results, conf)
+        if primary_ea:
+            plot_learning_curves(primary_ea, bptt_results, conf)
+            plot_weight_comparison(primary_ea, bptt_results, conf)
+            plot_sample_trial(primary_ea, bptt_results, conf)
 
     print("\n" + "=" * 60)
     print("DONE")
     print("=" * 60)
     if ea_results:
-        print(f"EA:   fitness={ea_results['best_fitness']:+.4f}  "
+        print(f"ES:   fitness={ea_results['best_fitness']:+.4f}  "
               f"acc={ea_results['history']['accuracy'][-1]:.1%}")
+    if ga_results:
+        print(f"GA:   fitness={ga_results['best_fitness']:+.4f}  "
+              f"acc={ga_results['history']['accuracy'][-1]:.1%}")
     if bptt_results:
         print(f"BPTT: fitness={bptt_results['history']['fitness'][-1]:+.4f}  "
               f"acc={bptt_results['history']['accuracy'][-1]:.1%}")
     print(f"Output: {conf.output_dir}/")
 
-    return {'ea': ea_results, 'bptt': bptt_results, 'config': conf}
+    return {'es': ea_results, 'ga': ga_results, 'bptt': bptt_results, 'config': conf}
 
 
 if __name__ == "__main__":
@@ -545,16 +571,16 @@ if __name__ == "__main__":
     p.add_argument('--task', choices=['nback', 'wm'], default='nback')
     p.add_argument('--neurons', type=int, default=32)
     p.add_argument('--n-back', type=int, default=2)
+    p.add_argument('--method', choices=['es', 'ga', 'both'], default='ga')
+    p.add_argument('--no-bptt', action='store_true')
     p.add_argument('--output', type=str, default=None)
-    p.add_argument('--ea-only', action='store_true')
-    p.add_argument('--bptt-only', action='store_true')
     p.add_argument('--ea-gens', type=int, default=300)
     p.add_argument('--bptt-iters', type=int, default=1000)
     p.add_argument('--seed', type=int, default=42)
     args = p.parse_args()
 
     run(task=args.task, n_neurons=args.neurons, output_dir=args.output,
-        ea_only=args.ea_only, bptt_only=args.bptt_only,
+        method=args.method, bptt=not args.no_bptt,
         n_back=args.n_back,
         ea_generations=args.ea_gens, bptt_iterations=args.bptt_iters,
         seed=args.seed)

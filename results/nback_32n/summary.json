@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-02-26T00:54:56.975754",
+  "timestamp": "2026-02-26T09:23:32.222418",
   "task": "nback",
   "n_neurons": 32,
-  "ea_best_fitness": -0.028875955007970334,
-  "ea_final_accuracy": 0.26883680555555556,
-  "bptt_final_fitness": -0.0040738219395279884,
-  "bptt_final_accuracy": 0.8151041865348816
+  "ea_best_fitness": -0.01818152777850628,
+  "ea_final_accuracy": 0.2580797697368421,
+  "bptt_final_fitness": -0.004152942448854446,
+  "bptt_final_accuracy": 0.8034539222717285
 }
