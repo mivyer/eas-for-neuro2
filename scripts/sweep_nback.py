@@ -9,13 +9,17 @@ Produces:
   3. Sample trial outputs per level
 """
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import time
-import os
 import json
 from dataclasses import asdict
 
-from run_full_analysis import Config, train_ea, train_bptt
+from config import Config
+from trainers.train_es import train_es
+from trainers.train_bptt import train_bptt
 from envs.letter_nback import (
     LetterNBackTask, SYMBOL_VALUES, SYMBOL_LABELS,
     decode_output, N_SYMBOLS
@@ -93,7 +97,7 @@ def run_sweep(n_values=(1, 2, 3, 4), n_neurons=32, seed=42, output_dir="results/
         # EA
         print(f"\n--- EA ({n}-back) ---")
         t0 = time.time()
-        ea = train_ea(conf)
+        ea = train_es(conf)
         ea_time = time.time() - t0
         print(f"EA time: {ea_time:.1f}s")
 

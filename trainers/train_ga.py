@@ -1,4 +1,4 @@
-# ea_genetic.py
+# trainers/train_ga.py
 """
 Genetic Algorithm for Evolving RNN Weights
 
@@ -57,7 +57,7 @@ class GeneticAlgorithm:
 
     def __init__(self, n_neurons=32, obs_dim=1, action_dim=1,
                  pop_size=128, n_elite=4, tournament_k=3,
-                 crossover_rate=0.5, mutation_rate=0.05,
+                 crossover_rate=0.7, mutation_rate=0.05,
                  mutation_std=0.3, n_eval_trials=20, seed=42):
 
         self.n_neurons = n_neurons

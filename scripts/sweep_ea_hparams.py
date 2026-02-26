@@ -15,7 +15,11 @@ import os
 import json
 import itertools
 
-from run_full_analysis import Config, train_ea
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config import Config
+from trainers.train_es import train_es
 from envs.letter_nback import LetterNBackTask, SYMBOL_VALUES, SYMBOL_LABELS, N_SYMBOLS
 from models.rsnn_policy import RSNNPolicy
 
@@ -83,7 +87,7 @@ def run_sweep(n_back=1, n_neurons=32, seed=42, output_dir="results/ea_sweep",
         )
 
         t0 = time.time()
-        ea = train_ea(conf)
+        ea = train_es(conf)
         elapsed = time.time() - t0
 
         # Test on 100 trials

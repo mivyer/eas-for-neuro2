@@ -10,8 +10,10 @@ Key figures:
   5. Weight structure: how W_rec changes
 """
 
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
-import os
 import json
 
 try:
