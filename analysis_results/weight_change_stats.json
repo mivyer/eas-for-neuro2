@@ -1,0 +1,78 @@
+{
+  "ea": {
+    "W_rec": {
+      "init_norm": 0.6840303683772522,
+      "final_norm": 3.030740710169884,
+      "delta_norm": 3.023745799528572,
+      "delta_mean": 0.0026784893022337997,
+      "delta_std": 0.01150379908393681,
+      "delta_abs_mean": 0.002813665406129928,
+      "init_sparsity": 0.99609375,
+      "final_sparsity": 0.92547607421875,
+      "n_params": 65536,
+      "change_fraction": 1.0
+    },
+    "W_in": {
+      "init_norm": 7.576988697052002,
+      "final_norm": 7.576988697052002,
+      "delta_norm": 0.0,
+      "delta_mean": 0.0,
+      "delta_std": 0.0,
+      "delta_abs_mean": 0.0,
+      "init_sparsity": 0.0234375,
+      "final_sparsity": 0.0234375,
+      "n_params": 256,
+      "change_fraction": 0.0
+    },
+    "W_out": {
+      "init_norm": 7.412271022796631,
+      "final_norm": 7.412271022796631,
+      "delta_norm": 0.0,
+      "delta_mean": 0.0,
+      "delta_std": 0.0,
+      "delta_abs_mean": 0.0,
+      "init_sparsity": 0.015625,
+      "final_sparsity": 0.015625,
+      "n_params": 256,
+      "change_fraction": 0.0
+    }
+  },
+  "bptt": {
+    "W_rec": {
+      "init_norm": 25.753421783447266,
+      "final_norm": 25.78523063659668,
+      "delta_norm": 1.3516547679901123,
+      "delta_mean": -1.3855748875357676e-05,
+      "delta_std": 0.005279882811009884,
+      "delta_abs_mean": 0.0043143341317772865,
+      "init_sparsity": 0.08056640625,
+      "final_sparsity": 0.0793609619140625,
+      "n_params": 65536,
+      "change_fraction": 0.8917942272782039
+    },
+    "W_in": {
+      "init_norm": 1.6638542413711548,
+      "final_norm": 1.6591616868972778,
+      "delta_norm": 0.07907699048519135,
+      "delta_mean": -0.00022148915741126984,
+      "delta_std": 0.004937346093356609,
+      "delta_abs_mean": 0.003923996351659298,
+      "init_sparsity": 0.0703125,
+      "final_sparsity": 0.09375,
+      "n_params": 256,
+      "change_fraction": 0.052173384280728534
+    },
+    "W_out": {
+      "init_norm": 1.6113038063049316,
+      "final_norm": 1.5815542936325073,
+      "delta_norm": 0.08492591977119446,
+      "delta_mean": -0.0001853771973401308,
+      "delta_std": 0.005304631777107716,
+      "delta_abs_mean": 0.004306876100599766,
+      "init_sparsity": 0.0703125,
+      "final_sparsity": 0.07421875,
+      "n_params": 256,
+      "change_fraction": 0.056032388441067615
+    }
+  }
+}
