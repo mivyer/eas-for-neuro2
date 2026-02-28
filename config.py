@@ -38,8 +38,8 @@ class Config:
     bptt_lr: float = 1e-3
 
     # LIF neuron params
-    lif_beta: float = 0.85
-    lif_threshold: float = 1.0
+    lif_beta: float = 0.9        # slower leak → voltage accumulates
+    lif_threshold: float = 0.5   # lower threshold → neurons actually fire
     lif_refractory: int = 2
     ei_ratio: float = 0.8
 

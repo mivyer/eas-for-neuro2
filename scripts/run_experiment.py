@@ -67,17 +67,29 @@ def run(conf, method="ga", run_bptt=True):
         timings['ga_stdp'] = time.time() - t0
         print(f"GA+STDP time: {timings['ga_stdp']:.1f}s\n")
 
-    # --- BPTT ---
+    # --- BPTT (rate-coded baseline) ---
     if run_bptt:
         print("-" * 60)
-        print("Training BPTT...")
+        print("Training BPTT (rate-coded)...")
         print("-" * 60)
         from trainers.train_bptt import train_bptt
         t0 = time.time()
-        results['bptt'] = train_bptt(conf)
+        results['bptt'] = train_bptt(conf, use_lif=False)
         timings['bptt'] = time.time() - t0
         if results['bptt']:
             print(f"BPTT time: {timings['bptt']:.1f}s\n")
+
+    # --- BPTT-LIF (surrogate gradient on spiking neurons) ---
+    if method in ("bptt_lif", "all"):
+        print("-" * 60)
+        print("Training BPTT-LIF (surrogate gradient)...")
+        print("-" * 60)
+        from trainers.train_bptt import train_bptt
+        t0 = time.time()
+        results['bptt_lif'] = train_bptt(conf, use_lif=True)
+        timings['bptt_lif'] = time.time() - t0
+        if results['bptt_lif']:
+            print(f"BPTT-LIF time: {timings['bptt_lif']:.1f}s\n")
 
     # --- Summary ---
     print("\n" + "=" * 60)
@@ -114,10 +126,13 @@ if __name__ == "__main__":
     p.add_argument('--task', choices=['nback', 'wm'], default='nback')
     p.add_argument('--neurons', type=int, default=32)
     p.add_argument('--n-back', type=int, default=2)
-    p.add_argument('--method', choices=['es', 'ga', 'ga_stdp', 'all'], default='ga')
-    p.add_argument('--no-bptt', action='store_true')
+    p.add_argument('--method', choices=['es', 'ga', 'ga_stdp', 'bptt_lif', 'all'], default='ga')
+    p.add_argument('--no-bptt', action='store_true',
+                   help='Skip rate-coded BPTT baseline')
     p.add_argument('--output', type=str, default=None)
     p.add_argument('--ea-gens', type=int, default=300)
+    p.add_argument('--ea-pop', type=int, default=128)
+    p.add_argument('--ea-trials', type=int, default=20)
     p.add_argument('--bptt-iters', type=int, default=1000)
     p.add_argument('--seed', type=int, default=42)
     args = p.parse_args()
@@ -130,6 +145,8 @@ if __name__ == "__main__":
         n_back=args.n_back,
         output_dir=output_dir,
         ea_generations=args.ea_gens,
+        ea_pop_size=args.ea_pop,
+        ea_n_eval_trials=args.ea_trials,
         bptt_iterations=args.bptt_iters,
         seed=args.seed,
     )
