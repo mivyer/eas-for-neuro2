@@ -20,6 +20,7 @@ from dataclasses import asdict
 from config import Config
 from trainers.train_es import train_es
 from trainers.train_bptt import train_bptt
+from scripts.run_experiment import _save_config, _save_method
 from envs.letter_nback import (
     LetterNBackTask, SYMBOL_VALUES, SYMBOL_LABELS,
     decode_output, N_SYMBOLS
@@ -100,6 +101,8 @@ def run_sweep(n_values=(1, 2, 3, 4), n_neurons=32, seed=42, output_dir="results/
         ea = train_es(conf)
         ea_time = time.time() - t0
         print(f"EA time: {ea_time:.1f}s")
+        _save_config(conf, conf.output_dir)
+        _save_method(ea, 'es', conf.output_dir)
 
         # BPTT
         bptt = None
@@ -110,6 +113,8 @@ def run_sweep(n_values=(1, 2, 3, 4), n_neurons=32, seed=42, output_dir="results/
             bptt = train_bptt(conf)
             bptt_time = time.time() - t0
             print(f"BPTT time: {bptt_time:.1f}s")
+            if bptt:
+                _save_method(bptt, 'bptt', conf.output_dir)
 
         # Test both on 100 trials at this level
         task = LetterNBackTask(n_back=n, seq_length=conf.seq_length)

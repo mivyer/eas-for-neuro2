@@ -30,64 +30,70 @@ except ImportError:
 
 N_SYMBOLS = 5
 SYMBOL_VALUES = np.array([i / N_SYMBOLS for i in range(1, N_SYMBOLS + 1)], dtype=np.float32)
-# [0.2, 0.4, 0.6, 0.8, 1.0]
+# [0.2, 0.4, 0.6, 0.8, 1.0] — kept for backward compat (used by GA_STDP)
 SYMBOL_LABELS = ['A', 'B', 'C', 'D', 'E']
 
 
 def encode_letter(idx: int) -> float:
+    """Scalar encoding — kept for backward compat."""
     return SYMBOL_VALUES[idx]
 
 
 def decode_output(value: float) -> int:
+    """Nearest-symbol decode from scalar — kept for backward compat."""
     return int(np.argmin(np.abs(SYMBOL_VALUES - value)))
 
 
 class LetterNBackTask:
-    """NumPy version for EA evaluation."""
+    """NumPy version for EA evaluation.
+
+    Input:  one-hot vector of length N_SYMBOLS (5,) — no scalar encoding exploit
+    Output: 5-dim vector; argmax gives predicted class
+    Target: class index 0–4, or -1 for timesteps before the n-back response window
+    """
 
     def __init__(self, n_back: int = 2, seq_length: int = 20):
         self.n_back = n_back
         self.seq_length = seq_length
         self.total_steps = seq_length
-        self.obs_dim = 1
-        self.action_dim = 1
+        self.obs_dim = N_SYMBOLS   # 5
+        self.action_dim = N_SYMBOLS  # 5
 
-    def get_trial(self, rng: np.random.Generator | None = None):
+    def get_trial(self, rng=None):
         """
         Returns:
-            inputs:  (T,) float32 — encoded current letters
-            targets: (T,) float32 — encoded letter from n steps back (0 for t < n)
-            letters: (T,) int32   — raw letter indices 0–4
+            inputs:  (T, N_SYMBOLS) float32 — one-hot current letter
+            targets: (T,)           int32   — class index 0–4, -1 = no response
+            letters: (T,)           int32   — raw letter indices 0–4
         """
         if rng is None:
             rng = np.random.default_rng()
 
         letters = rng.integers(0, N_SYMBOLS, size=self.seq_length)
-        inputs = np.array([encode_letter(l) for l in letters], dtype=np.float32)
 
-        targets = np.zeros(self.seq_length, dtype=np.float32)
+        # One-hot input
+        inputs = np.zeros((self.seq_length, N_SYMBOLS), dtype=np.float32)
+        for t, l in enumerate(letters):
+            inputs[t, l] = 1.0
+
+        # Class-index targets; -1 = no response required
+        targets = np.full(self.seq_length, -1, dtype=np.int32)
         for t in range(self.n_back, self.seq_length):
-            targets[t] = encode_letter(letters[t - self.n_back])
+            targets[t] = int(letters[t - self.n_back])
 
         return inputs, targets, letters
 
     def evaluate_outputs(self, outputs: np.ndarray, targets: np.ndarray) -> float:
-        """Fitness = negative MSE on response steps. Max = 0 (perfect)."""
-        mask = targets > 0
+        """Fitness = fraction correct on response steps (0–1). Max = 1."""
+        mask = targets >= 0
         if not mask.any():
             return 0.0
-        return -float(np.mean((outputs[mask] - targets[mask]) ** 2))
+        pred = np.argmax(outputs[mask], axis=-1)
+        return float((pred == targets[mask]).mean())
 
     def compute_accuracy(self, outputs: np.ndarray, targets: np.ndarray) -> float:
-        """Fraction of response steps where nearest-symbol decode is correct."""
-        mask = targets > 0
-        if not mask.any():
-            return 0.0
-        correct = sum(
-            decode_output(outputs[t]) == decode_output(targets[t])
-            for t in np.where(mask)[0]
-        )
-        return correct / mask.sum()
+        """Fraction correct — same as evaluate_outputs for classification."""
+        return self.evaluate_outputs(outputs, targets)
 
     def run_trial(self, policy, rng=None) -> float:
         if rng is None:
@@ -95,93 +101,107 @@ class LetterNBackTask:
         inputs, targets, _ = self.get_trial(rng=rng)
         policy.reset()
         outputs = np.array([
-            float(policy.act(np.array([inputs[t]], dtype=np.float32))[0])
-            if hasattr(policy.act(np.array([inputs[t]], dtype=np.float32)), '__len__')
-            else float(policy.act(np.array([inputs[t]], dtype=np.float32)))
-            for t in range(self.total_steps)
-        ], dtype=np.float32)
+            policy.act(inputs[t]) for t in range(self.total_steps)
+        ], dtype=np.float32)  # (T, 5)
         return self.evaluate_outputs(outputs, targets)
 
     def evaluate_policy(self, policy, n_trials: int = 10, rng=None) -> dict:
         if rng is None:
             rng = np.random.default_rng()
 
-        fitnesses, accuracies = [], []
+        fitnesses = []
         for _ in range(n_trials):
             inputs, targets, _ = self.get_trial(rng=rng)
             policy.reset()
-            outputs = []
-            for t in range(self.total_steps):
-                obs = np.array([inputs[t]], dtype=np.float32)
-                a = policy.act(obs)
-                outputs.append(float(a[0]) if hasattr(a, '__len__') else float(a))
-            outputs = np.array(outputs, dtype=np.float32)
+            outputs = np.array([
+                policy.act(inputs[t]) for t in range(self.total_steps)
+            ], dtype=np.float32)  # (T, 5)
             fitnesses.append(self.evaluate_outputs(outputs, targets))
-            accuracies.append(self.compute_accuracy(outputs, targets))
 
+        acc = float(np.mean(fitnesses))
         return {
-            'fitness': float(np.mean(fitnesses)),
-            'accuracy': float(np.mean(accuracies)),
+            'fitness': acc,
+            'accuracy': acc,
             'fitness_std': float(np.std(fitnesses)),
         }
 
-    def print_trial(self, inputs, outputs, targets, letters):
-        print(f"\n{'t':>3} | {'In':>6} | {'Ltr':>3} | {'Target':>10} | "
-              f"{'Output':>7} | {'Dec':>3} | {'':>2}")
-        print("-" * 52)
+    def print_trial(self, outputs, targets, letters):
+        """outputs: (T,5) logits/scores; targets: (T,) int with -1; letters: (T,) int."""
+        print(f"\n{'t':>3} | {'Ltr':>3} | {'Target':>6} | {'Pred':>6} | {'OK':>2}")
+        print("-" * 32)
         for t in range(self.total_steps):
             ltr = SYMBOL_LABELS[letters[t]]
-            if t < self.n_back:
-                print(f"{t:3d} | {inputs[t]:.3f}  | {ltr:>3} | {'—':>10} | "
-                      f"{outputs[t]:+.3f} |     |")
+            if targets[t] < 0:
+                print(f"{t:3d} | {ltr:>3} | {'—':>6} | {'—':>6} |")
             else:
-                tgt_idx = decode_output(targets[t])
-                dec_idx = decode_output(outputs[t])
-                ok = "✓" if tgt_idx == dec_idx else "✗"
-                print(f"{t:3d} | {inputs[t]:.3f}  | {ltr:>3} | "
-                      f"{targets[t]:.2f} ({SYMBOL_LABELS[tgt_idx]}) | "
-                      f"{outputs[t]:+.3f} | {SYMBOL_LABELS[dec_idx]:>3} | {ok}")
+                tgt_ltr = SYMBOL_LABELS[targets[t]]
+                pred_idx = int(np.argmax(outputs[t]))
+                pred_ltr = SYMBOL_LABELS[pred_idx]
+                ok = "✓" if pred_idx == targets[t] else "✗"
+                print(f"{t:3d} | {ltr:>3} | {tgt_ltr:>6} | {pred_ltr:>6} | {ok}")
 
 
 class LetterNBackTaskTorch:
-    """PyTorch version for BPTT."""
+    """PyTorch version for BPTT.
+
+    Outputs 5 logits (one per symbol) + cross-entropy loss.
+    Targets: class index (0–4), or -1 for timesteps before n-back response.
+    """
 
     def __init__(self, n_back: int = 2, seq_length: int = 20, device: str = "cpu"):
         self.n_back = n_back
         self.seq_length = seq_length
         self.device = device
+        self.n_symbols = N_SYMBOLS
         self.np_task = LetterNBackTask(n_back, seq_length)
 
     def get_batch(self, batch_size: int):
+        """
+        Returns:
+            inputs:  (B, T, N_SYMBOLS) float32 — one-hot current letter
+            targets: (B, T)            int64   — class index 0–4, or -1 (no response)
+        """
         rng = np.random.default_rng()
         inps, tgts = [], []
         for _ in range(batch_size):
-            i, t, _ = self.np_task.get_trial(rng=rng)
-            inps.append(i); tgts.append(t)
-        return (torch.tensor(np.array(inps), dtype=torch.float32, device=self.device),
-                torch.tensor(np.array(tgts), dtype=torch.float32, device=self.device))
+            inp, tgt, _ = self.np_task.get_trial(rng=rng)
+            # inp: (T, 5) one-hot float32; tgt: (T,) int32 with -1 sentinel
+            inps.append(inp)
+            tgts.append(tgt)
+        return (
+            torch.tensor(np.array(inps), dtype=torch.float32, device=self.device),
+            torch.tensor(np.array(tgts), dtype=torch.long, device=self.device),
+        )
 
     def compute_loss(self, outputs, targets):
-        mask = (targets > 0).float()
-        n = mask.sum()
-        if n == 0:
-            return torch.tensor(0.0, device=self.device)
-        return ((outputs - targets) ** 2 * mask).sum() / n
+        """
+        Args:
+            outputs: (B, T, 5) logits
+            targets: (B, T) long, -1 = no response (ignored)
+        """
+        import torch.nn.functional as F
+        B, T, C = outputs.shape
+        return F.cross_entropy(
+            outputs.reshape(B * T, C),
+            targets.reshape(B * T),
+            ignore_index=-1,
+        )
 
     def compute_accuracy(self, outputs, targets):
-        mask = targets > 0
+        """
+        Args:
+            outputs: (B, T, 5) logits
+            targets: (B, T) long, -1 = no response
+        """
+        mask = targets >= 0
         if not mask.any():
             return 0.0
-        sym = torch.tensor(SYMBOL_VALUES, device=outputs.device)
-        pred = (outputs[mask].unsqueeze(-1) - sym).abs().argmin(dim=-1)
-        actual = (targets[mask].unsqueeze(-1) - sym).abs().argmin(dim=-1)
-        return float((pred == actual).float().mean().item())
+        pred = outputs.argmax(dim=-1)  # (B, T)
+        return float((pred[mask] == targets[mask]).float().mean().item())
 
     def compute_fitness(self, outputs, targets):
-        mask = targets > 0
-        if not mask.any():
-            return 0.0
-        return -float(((outputs[mask] - targets[mask]) ** 2).mean().item())
+        """Negative cross-entropy (higher = better). Max = 0."""
+        return -float(self.compute_loss(outputs, targets).item())
 
 
 # ============================================================================
@@ -213,29 +233,40 @@ def sweep_nback(policy_factory, n_values=(1, 2, 3, 4, 5),
 def demo_task():
     print("=" * 52)
     print("Letter N-Back Recall (5 symbols: A B C D E)")
+    print("One-hot input, 5-class output, cross-entropy loss")
     print("=" * 52)
 
+    rng = np.random.default_rng(42)
     for n in [1, 2, 3]:
         print(f"\n--- {n}-back ---")
         task = LetterNBackTask(n_back=n, seq_length=15)
-        rng = np.random.default_rng(42)
-        inputs, targets, letters = task.get_trial(rng=rng)
+        _, targets, letters = task.get_trial(rng=rng)
 
-        # Baselines
+        # Baseline: uniform random 5-class logits
+        random_out = rng.standard_normal((15, N_SYMBOLS)).astype(np.float32)
+        # Baseline: always predict class 0 (A)
+        class0_out = np.zeros((15, N_SYMBOLS), dtype=np.float32)
+        class0_out[:, 0] = 1.0
+        # Perfect: one-hot at correct class
+        perfect_out = np.zeros((15, N_SYMBOLS), dtype=np.float32)
+        for t in range(15):
+            if targets[t] >= 0:
+                perfect_out[t, targets[t]] = 1.0
+
         for name, out in [
-            ("Constant 0.6", np.full(15, 0.6, dtype=np.float32)),
-            ("Perfect",      targets.copy()),
-            ("Random [0,1]", rng.random(15).astype(np.float32)),
+            ("Always-A",  class0_out),
+            ("Perfect",   perfect_out),
+            ("Random",    random_out),
         ]:
             f = task.evaluate_outputs(out, targets)
-            a = task.compute_accuracy(out, targets)
-            print(f"  {name:<14s}: fitness={f:+.4f}, acc={a:.0%}")
+            print(f"  {name:<10s}: acc={f:.0%}")
 
-    print("\n\nSample 2-back trial (constant 0.5 output):")
+    print("\n\nSample 2-back trial (random outputs):")
     task = LetterNBackTask(n_back=2, seq_length=15)
     rng = np.random.default_rng(42)
-    inputs, targets, letters = task.get_trial(rng=rng)
-    task.print_trial(inputs, np.full(15, 0.5, dtype=np.float32), targets, letters)
+    _, targets, letters = task.get_trial(rng=rng)
+    random_out = rng.standard_normal((15, N_SYMBOLS)).astype(np.float32)
+    task.print_trial(random_out, targets, letters)
 
 
 if __name__ == "__main__":

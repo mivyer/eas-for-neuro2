@@ -253,6 +253,7 @@ class GeneticAlgorithm:
             'history': history,
             'snapshots': snapshots,
             'snapshot_gens': list(snapshots.keys()),
+            'best_gene': best_gene,  # flat gene vector for the best individual
         }
 
 

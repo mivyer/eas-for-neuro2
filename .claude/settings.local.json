@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/run_experiment.py --method all --n-back 2 --ea-gens 50 --bptt-iters 200 --ea-pop 32 --ea-trials 5 --seed 42)",
+      "Bash(python3 scripts/analyze_connectivity.py --from-results results/nback_32n/)",
+      "Bash(python3 scripts/run_experiment.py --method all --n-back 2 --ea-gens 30 --bptt-iters 100 --ea-pop 32 --ea-trials 5 --seed 7 --save)"
+    ]
+  }
+}

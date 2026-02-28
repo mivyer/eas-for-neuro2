@@ -30,6 +30,7 @@ import json
 from itertools import product
 
 from config import Config
+from scripts.run_experiment import _save_config, _save_method
 
 try:
     import matplotlib.pyplot as plt
@@ -69,11 +70,13 @@ def sweep_ga_hparams(quick=True):
             ga_mutation_rate=mr, ga_mutation_std=ms,
             ea_n_eval_trials=20, seed=42,
             print_every=999,  # silent
-            output_dir='results/ga_sweep_tmp',
+            output_dir=os.path.join('results', 'ga_hparam_sweep', f'run_{i:03d}'),
         )
         t0 = time.time()
         r = train_ga(conf)
         elapsed = time.time() - t0
+        _save_config(conf, conf.output_dir)
+        _save_method(r, 'ga', conf.output_dir)
         acc = r['history']['accuracy'][-1]
         fit = r['best_fitness']
         results.append({
@@ -124,11 +127,13 @@ def sweep_ga_stdp_hparams(quick=True):
             ea_pop_size=ps, ea_generations=gens,
             ea_n_eval_trials=10, seed=42,
             print_every=999,
-            output_dir='results/ga_stdp_sweep_tmp',
+            output_dir=os.path.join('results', 'ga_stdp_sweep', f'run_{i:03d}'),
         )
         t0 = time.time()
         r = train_ga_stdp(conf)
         elapsed = time.time() - t0
+        _save_config(conf, conf.output_dir)
+        _save_method(r, 'ga_stdp', conf.output_dir)
         acc = r['history']['accuracy'][-1]
         fit = r['best_fitness']
         stdp_p = r.get('stdp_params', None)
@@ -166,13 +171,14 @@ def sweep_nback_all_methods(n_values=[1, 2, 3, 4], gens=300):
         print(f"{'='*60}")
 
         level_results = {}
+        level_dir = f'results/sweep_all/{n}back'
 
         # GA
         print(f"\n  Training GA...")
         conf_ga = Config(task='nback', n_back=n, n_neurons=32,
                          ea_pop_size=128, ea_generations=gens,
                          ea_n_eval_trials=20, seed=42, print_every=100,
-                         output_dir=f'results/sweep_all/{n}back')
+                         output_dir=level_dir)
         t0 = time.time()
         r = train_ga(conf_ga)
         level_results['ga'] = {
@@ -180,13 +186,15 @@ def sweep_nback_all_methods(n_values=[1, 2, 3, 4], gens=300):
             'fitness': r['best_fitness'],
             'time': time.time() - t0,
         }
+        _save_config(conf_ga, level_dir)
+        _save_method(r, 'ga', level_dir)
 
         # GA+STDP
         print(f"\n  Training GA+STDP...")
         conf_stdp = Config(task='nback', n_back=n, n_neurons=32,
                            ea_pop_size=64, ea_generations=gens,
                            ea_n_eval_trials=10, seed=42, print_every=100,
-                           output_dir=f'results/sweep_all/{n}back')
+                           output_dir=level_dir)
         t0 = time.time()
         r = train_ga_stdp(conf_stdp)
         level_results['ga_stdp'] = {
@@ -195,6 +203,7 @@ def sweep_nback_all_methods(n_values=[1, 2, 3, 4], gens=300):
             'time': time.time() - t0,
             'stdp_params': r.get('stdp_params', np.zeros(6)).tolist(),
         }
+        _save_method(r, 'ga_stdp', level_dir)
 
         # ES (tuned)
         print(f"\n  Training ES...")
@@ -202,7 +211,7 @@ def sweep_nback_all_methods(n_values=[1, 2, 3, 4], gens=300):
                          ea_pop_size=256, ea_generations=gens,
                          ea_lr=0.03, ea_sigma=0.02,
                          ea_n_eval_trials=20, seed=42, print_every=100,
-                         output_dir=f'results/sweep_all/{n}back')
+                         output_dir=level_dir)
         t0 = time.time()
         r = train_es(conf_es)
         level_results['es'] = {
@@ -210,12 +219,13 @@ def sweep_nback_all_methods(n_values=[1, 2, 3, 4], gens=300):
             'fitness': r['best_fitness'],
             'time': time.time() - t0,
         }
+        _save_method(r, 'es', level_dir)
 
         # BPTT
         print(f"\n  Training BPTT...")
         conf_bptt = Config(task='nback', n_back=n, n_neurons=32,
                            bptt_iterations=1000, seed=42, print_every=100,
-                           output_dir=f'results/sweep_all/{n}back')
+                           output_dir=level_dir)
         t0 = time.time()
         r = train_bptt(conf_bptt)
         if r:
@@ -224,6 +234,7 @@ def sweep_nback_all_methods(n_values=[1, 2, 3, 4], gens=300):
                 'fitness': r['history']['fitness'][-1],
                 'time': time.time() - t0,
             }
+            _save_method(r, 'bptt', level_dir)
 
         all_results[n] = level_results
 

@@ -95,4 +95,5 @@ def train_es(conf) -> dict:
         'best_fitness': best_fitness,
         'history': history,
         'snapshots': snapshots,
+        'best_gene': best_params,   # flat parameter vector for the best individual
     }

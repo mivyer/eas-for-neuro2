@@ -204,11 +204,9 @@ if TORCH_AVAILABLE:
             scale = np.sqrt(2.0 / n_neurons)
             self.W_rec_raw = nn.Parameter(scale * torch.randn(n_neurons, n_neurons))
             self.W_in = nn.Parameter(2.0 * scale * torch.randn(n_neurons, obs_dim))  # stronger input
-            self.W_out = nn.Parameter(scale * torch.randn(action_dim, n_neurons))
+            # Small init: membrane potentials are unbounded, so logits need small scale
+            self.W_out = nn.Parameter(0.01 * torch.randn(action_dim, n_neurons))
 
-            # Learnable output scale and bias (replaces hard sigmoid)
-            self.out_scale = nn.Parameter(torch.tensor(0.1))
-            self.out_bias = nn.Parameter(torch.tensor(0.5))
 
             # Initial hidden state
             self.register_buffer('v0', torch.zeros(n_neurons))
@@ -269,9 +267,8 @@ if TORCH_AVAILABLE:
                 # Set refractory
                 refrac = refrac + s * self.refractory_steps
 
-                # Output: learnable affine transform of membrane readout
-                raw = v @ self.W_out.T  # (B, action_dim)
-                y = torch.sigmoid(self.out_scale * raw + self.out_bias)
+                # Output: raw logits from membrane readout (softmax/CE applied externally)
+                y = v @ self.W_out.T  # (B, action_dim)
 
                 outputs.append(y)
                 spikes.append(s)

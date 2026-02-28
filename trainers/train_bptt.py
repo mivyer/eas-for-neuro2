@@ -57,12 +57,15 @@ def train_bptt(conf, use_lif=False) -> dict | None:
     N = conf.n_neurons
     task_torch = make_task_torch(conf)
 
+    # n-back uses 5-class softmax readout; other tasks use scalar output
+    action_dim = 5 if conf.task == "nback" else conf.action_dim
+
     if use_lif:
         from models.lif_rsnn import LIF_RSNN_Torch
         model = LIF_RSNN_Torch(
             n_neurons=N,
             obs_dim=conf.obs_dim,
-            action_dim=conf.action_dim,
+            action_dim=action_dim,
             beta=conf.lif_beta,
             threshold=conf.lif_threshold,
             temperature=2.0,  # wider surrogate → more neurons get gradient
@@ -74,7 +77,7 @@ def train_bptt(conf, use_lif=False) -> dict | None:
         lr = conf.bptt_lr * 3  # LIF needs higher LR (surrogate gradients are weaker)
     else:
         from models.bptt_rnn import RNNPolicy
-        model = RNNPolicy(N, conf.obs_dim, conf.action_dim).to("cpu")
+        model = RNNPolicy(N, conf.obs_dim, action_dim).to("cpu")
         label = "BPTT-Rate"
         lr = conf.bptt_lr
 
@@ -102,12 +105,18 @@ def train_bptt(conf, use_lif=False) -> dict | None:
 
         if use_lif:
             # LIF expects (T, batch, obs_dim)
-            inp_lif = inputs.permute(1, 0).unsqueeze(-1)  # (T, B, 1)
+            if inputs.dim() == 2:
+                inp_lif = inputs.permute(1, 0).unsqueeze(-1)  # (T, B, 1)
+            else:
+                inp_lif = inputs.permute(1, 0, 2)  # (T, B, obs_dim)
             model_out = model(inp_lif)  # returns (outputs, spikes)
             outputs_raw = model_out[0]  # (T, B, action_dim)
-            outputs = outputs_raw.squeeze(-1).permute(1, 0)  # (B, T)
+            if action_dim == 1:
+                outputs = outputs_raw.squeeze(-1).permute(1, 0)  # (B, T)
+            else:
+                outputs = outputs_raw.permute(1, 0, 2)  # (B, T, action_dim)
         else:
-            outputs = model(inputs)  # (batch, T)
+            outputs = model(inputs)  # (B, T) or (B, T, action_dim)
 
         loss = task_torch.compute_loss(outputs, targets)
 

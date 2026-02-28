@@ -22,6 +22,7 @@ from config import Config
 from trainers.train_es import train_es
 from envs.letter_nback import LetterNBackTask, SYMBOL_VALUES, SYMBOL_LABELS, N_SYMBOLS
 from models.rsnn_policy import RSNNPolicy
+from scripts.run_experiment import _save_config, _save_method
 
 try:
     import matplotlib.pyplot as plt
@@ -89,6 +90,8 @@ def run_sweep(n_back=1, n_neurons=32, seed=42, output_dir="results/ea_sweep",
         t0 = time.time()
         ea = train_es(conf)
         elapsed = time.time() - t0
+        _save_config(conf, conf.output_dir)
+        _save_method(ea, 'es', conf.output_dir)
 
         # Test on 100 trials
         task = LetterNBackTask(n_back=n_back, seq_length=conf.seq_length)

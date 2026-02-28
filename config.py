@@ -8,8 +8,8 @@ from dataclasses import dataclass, asdict
 class Config:
     # Architecture
     n_neurons: int = 32
-    obs_dim: int = 1
-    action_dim: int = 1
+    obs_dim: int = 5       # one-hot over 5 symbols
+    action_dim: int = 5    # 5-class softmax output
 
     # Task
     task: str = "nback"         # "nback" or "wm"

@@ -3,17 +3,26 @@
 """
 Main entry point for all thesis experiments.
 
-Usage:
-    python scripts/run_experiment.py --method ga --n-back 1
-    python scripts/run_experiment.py --method ga_stdp --n-back 1
-    python scripts/run_experiment.py --method es --n-back 2
-    python scripts/run_experiment.py --method all --n-back 1
+Fast (no disk writes — for iteration and sanity checks):
+    python scripts/run_experiment.py --method all --n-back 1 --ea-gens 50 --bptt-iters 100
+
+Full save (for real experiments you want to keep):
+    python scripts/run_experiment.py --method all --n-back 2 --save
+    python scripts/run_experiment.py --method all --n-back 5 --neurons 64 --save
+    python scripts/run_experiment.py --method all --n-back 2 --save --output results/custom/
+
+Output directory is auto-named as:
+    results/nback{N}_neurons{M}_seed{S}/
 """
 
 import sys
 import os
 import time
 import json
+import datetime
+import subprocess
+
+import numpy as np
 
 # Add project root to path so imports work from scripts/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,14 +30,93 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import Config
 
 
-def run(conf, method="ga", run_bptt=True):
-    """Run experiment with specified method(s)."""
+# ── Persistence helpers ───────────────────────────────────────────────────────
 
-    os.makedirs(conf.output_dir, exist_ok=True)
+def _git_hash() -> str:
+    try:
+        return subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return 'unknown'
+
+
+def _save_config(conf: Config, exp_dir: str) -> None:
+    """Write config.json with full Config + timestamp + git commit hash."""
+    meta = conf.to_dict()
+    meta['timestamp'] = datetime.datetime.now().isoformat()
+    meta['git_commit'] = _git_hash()
+    with open(os.path.join(exp_dir, 'config.json'), 'w') as f:
+        json.dump(meta, f, indent=2)
+
+
+def _save_method(result: dict, method: str, exp_dir: str) -> None:
+    """
+    Save one trained method's data to {exp_dir}/{method}/.
+
+    Writes:
+        weights_init.npz   — W_rec, W_in, W_out at initialisation
+        weights_final.npz  — W_rec, W_in, W_out after training
+        history.json       — per-iteration/generation learning curves
+        model.pt           — PyTorch state_dict              (BPTT only)
+        best_gene.npy      — flat genotype vector             (ES / GA only)
+    """
+    method_dir = os.path.join(exp_dir, method)
+    os.makedirs(method_dir, exist_ok=True)
+
+    np.savez(os.path.join(method_dir, 'weights_init.npz'),
+             W_rec=result['W_rec_init'],
+             W_in=result['W_in_init'],
+             W_out=result['W_out_init'])
+
+    np.savez(os.path.join(method_dir, 'weights_final.npz'),
+             W_rec=result['W_rec_final'],
+             W_in=result['W_in_final'],
+             W_out=result['W_out_final'])
+
+    with open(os.path.join(method_dir, 'history.json'), 'w') as f:
+        json.dump(result['history'], f, indent=2, default=float)
+
+    if result.get('model') is not None:
+        import torch
+        torch.save(result['model'].state_dict(),
+                   os.path.join(method_dir, 'model.pt'))
+
+    if result.get('best_gene') is not None:
+        np.save(os.path.join(method_dir, 'best_gene.npy'), result['best_gene'])
+
+
+def _auto_exp_name(conf: Config) -> str:
+    return f"nback{conf.n_back}_neurons{conf.n_neurons}_seed{conf.seed}"
+
+
+# ── Main experiment runner ────────────────────────────────────────────────────
+
+def run(conf: Config, method: str = "ga", run_bptt: bool = True,
+        save: bool = False, run_analysis: bool = True) -> dict:
+    """
+    Train with specified method(s) and optionally save results.
+
+    Args:
+        conf:         full experiment Config
+        method:       'es' | 'ga' | 'ga_stdp' | 'bptt_lif' | 'all'
+        run_bptt:     include rate-coded BPTT baseline
+        save:         write full results directory to conf.output_dir
+        run_analysis: compute connectivity figures (only when save=True)
+
+    Returns:
+        dict: {method_name: result_dict, ...}
+    """
+    if save:
+        os.makedirs(conf.output_dir, exist_ok=True)
 
     print("=" * 60)
     print(f"EXPERIMENT: {conf.task.upper()} | {conf.n_neurons} neurons")
     print(f"Method: {method}" + (" + BPTT" if run_bptt else ""))
+    if save:
+        print(f"Saving → {conf.output_dir}/")
     print("=" * 60)
     if conf.task == "nback":
         print(f"  {conf.n_back}-back recall, seq_len={conf.seq_length}, 5 symbols")
@@ -36,7 +124,7 @@ def run(conf, method="ga", run_bptt=True):
     results = {}
     timings = {}
 
-    # --- Evolutionary methods ---
+    # --- ES ---
     if method in ("es", "all"):
         print("\n" + "-" * 60)
         print("Training ES (OpenAI Evolution Strategy)...")
@@ -47,6 +135,7 @@ def run(conf, method="ga", run_bptt=True):
         timings['es'] = time.time() - t0
         print(f"ES time: {timings['es']:.1f}s\n")
 
+    # --- GA ---
     if method in ("ga", "all"):
         print("-" * 60)
         print("Training GA (Genetic Algorithm)...")
@@ -57,7 +146,8 @@ def run(conf, method="ga", run_bptt=True):
         timings['ga'] = time.time() - t0
         print(f"GA time: {timings['ga']:.1f}s\n")
 
-    if method in ("ga_stdp", "all"):
+    # --- GA+STDP (opt-in only; uses LIF internally) ---
+    if method == "ga_stdp":
         print("-" * 60)
         print("Training GA+STDP (Baldwin Effect)...")
         print("-" * 60)
@@ -67,7 +157,7 @@ def run(conf, method="ga", run_bptt=True):
         timings['ga_stdp'] = time.time() - t0
         print(f"GA+STDP time: {timings['ga_stdp']:.1f}s\n")
 
-    # --- BPTT (rate-coded baseline) ---
+    # --- BPTT rate-coded ---
     if run_bptt:
         print("-" * 60)
         print("Training BPTT (rate-coded)...")
@@ -79,8 +169,8 @@ def run(conf, method="ga", run_bptt=True):
         if results['bptt']:
             print(f"BPTT time: {timings['bptt']:.1f}s\n")
 
-    # --- BPTT-LIF (surrogate gradient on spiking neurons) ---
-    if method in ("bptt_lif", "all"):
+    # --- BPTT-LIF (opt-in only) ---
+    if method == "bptt_lif":
         print("-" * 60)
         print("Training BPTT-LIF (surrogate gradient)...")
         print("-" * 60)
@@ -91,64 +181,77 @@ def run(conf, method="ga", run_bptt=True):
         if results['bptt_lif']:
             print(f"BPTT-LIF time: {timings['bptt_lif']:.1f}s\n")
 
-    # --- Summary ---
+    # --- Print results table ---
     print("\n" + "=" * 60)
     print("RESULTS")
     print("=" * 60)
     for name, r in results.items():
         if r is None:
             continue
-        if 'best_fitness' in r:
-            acc = r['history']['accuracy'][-1]
-            fit = r['best_fitness']
-        else:
-            acc = r['history']['accuracy'][-1]
-            fit = r['history']['fitness'][-1]
-        t = timings.get(name, 0)
+        acc = r['history']['accuracy'][-1]
+        fit = r.get('best_fitness', r['history']['fitness'][-1])
+        t   = timings.get(name, 0)
         print(f"  {name:>8s}: acc={acc:.1%}  fit={fit:+.4f}  time={t:.0f}s")
 
-    print(f"\nOutput: {conf.output_dir}/")
+    # --- Save to disk ---
+    if save:
+        _save_config(conf, conf.output_dir)
+        for name, r in results.items():
+            if r is not None:
+                _save_method(r, name, conf.output_dir)
+                print(f"  Saved {conf.output_dir}/{name}/")
 
-    # --- Save summary ---
-    summary = {'config': conf.to_dict(), 'timings': timings}
-    for name, r in results.items():
-        if r and 'history' in r:
-            summary[f'{name}_final_accuracy'] = r['history']['accuracy'][-1]
-    with open(os.path.join(conf.output_dir, 'summary.json'), 'w') as f:
-        json.dump(summary, f, indent=2, default=str)
+        if run_analysis:
+            from scripts.analyze_connectivity import analyze
+            analyze(results, conf.output_dir, ei_ratio=conf.ei_ratio)
 
     return results
 
 
+# ── CLI ───────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     import argparse
-    p = argparse.ArgumentParser(description="Run thesis experiments")
-    p.add_argument('--task', choices=['nback', 'wm'], default='nback')
+    p = argparse.ArgumentParser(
+        description="Run thesis experiments",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p.add_argument('--task',    choices=['nback', 'wm'], default='nback')
     p.add_argument('--neurons', type=int, default=32)
-    p.add_argument('--n-back', type=int, default=2)
-    p.add_argument('--method', choices=['es', 'ga', 'ga_stdp', 'bptt_lif', 'all'], default='ga')
+    p.add_argument('--n-back',  type=int, default=2)
+    p.add_argument('--method',
+                   choices=['es', 'ga', 'ga_stdp', 'bptt_lif', 'all'],
+                   default='ga',
+                   help="'all' = es+ga+bptt. ga_stdp/bptt_lif are opt-in.")
     p.add_argument('--no-bptt', action='store_true',
                    help='Skip rate-coded BPTT baseline')
-    p.add_argument('--output', type=str, default=None)
-    p.add_argument('--ea-gens', type=int, default=300)
-    p.add_argument('--ea-pop', type=int, default=128)
-    p.add_argument('--ea-trials', type=int, default=20)
+    p.add_argument('--save', action='store_true',
+                   help='Write full results directory (weights, history, figures). '
+                        'Without this flag nothing is written to disk.')
+    p.add_argument('--no-analysis', action='store_true',
+                   help='Skip connectivity figures even when --save is used')
+    p.add_argument('--output', type=str, default=None,
+                   help='Output directory override. Default: results/nback{N}_neurons{M}_seed{S}')
+    p.add_argument('--ea-gens',    type=int, default=300)
+    p.add_argument('--ea-pop',     type=int, default=128)
+    p.add_argument('--ea-trials',  type=int, default=20)
     p.add_argument('--bptt-iters', type=int, default=1000)
-    p.add_argument('--seed', type=int, default=42)
+    p.add_argument('--seed',       type=int, default=42)
     args = p.parse_args()
 
-    output_dir = args.output or f"results/{args.task}_{args.neurons}n"
-
+    # Build a temporary conf for auto-naming (output_dir filled next)
     conf = Config(
         task=args.task,
         n_neurons=args.neurons,
         n_back=args.n_back,
-        output_dir=output_dir,
         ea_generations=args.ea_gens,
         ea_pop_size=args.ea_pop,
         ea_n_eval_trials=args.ea_trials,
         bptt_iterations=args.bptt_iters,
         seed=args.seed,
+        output_dir='',  # resolved below
     )
+    conf.output_dir = args.output or f"results/{_auto_exp_name(conf)}"
 
-    run(conf, method=args.method, run_bptt=not args.no_bptt)
+    run(conf, method=args.method, run_bptt=not args.no_bptt,
+        save=args.save, run_analysis=not args.no_analysis)
