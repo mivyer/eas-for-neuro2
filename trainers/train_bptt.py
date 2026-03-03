@@ -71,7 +71,7 @@ def train_bptt(conf, use_lif=False) -> dict | None:
             temperature=2.0,  # wider surrogate → more neurons get gradient
             refractory_steps=conf.lif_refractory,
             ei_ratio=conf.ei_ratio,
-            dale=True,
+            dale=False,
         ).to("cpu")
         label = "BPTT-LIF"
         lr = conf.bptt_lr * 3  # LIF needs higher LR (surrogate gradients are weaker)
@@ -95,7 +95,7 @@ def train_bptt(conf, use_lif=False) -> dict | None:
     if use_lif:
         print(f"  LIF: beta={conf.lif_beta}, threshold={conf.lif_threshold}, "
               f"temp=2.0, lr={lr:.4f}")
-        print(f"  E/I={conf.ei_ratio:.0%}/{1-conf.ei_ratio:.0%}, Dale's law")
+        # print(f"  E/I={conf.ei_ratio:.0%}/{1-conf.ei_ratio:.0%}, Dale's law")  # disabled
     print(f"Task: {conf.task} | iters={conf.bptt_iterations}, lr={lr}")
 
     for it in range(conf.bptt_iterations):

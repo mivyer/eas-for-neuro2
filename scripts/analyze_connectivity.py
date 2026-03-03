@@ -269,27 +269,27 @@ def fig3_delta_rec_heatmaps(results: dict, metrics: dict, methods: list,
         im = ax.imshow(dW, cmap='RdBu_r', norm=norm, aspect='equal',
                        origin='upper')
 
-        # E/I boundary lines
-        for pos in [ei_boundary - 0.5]:
-            ax.axvline(pos, color='k', linewidth=1.5, linestyle='--', alpha=0.7)
-            ax.axhline(pos, color='k', linewidth=1.5, linestyle='--', alpha=0.7)
+        # # E/I boundary lines  (disabled — no E/I split)
+        # for pos in [ei_boundary - 0.5]:
+        #     ax.axvline(pos, color='k', linewidth=1.5, linestyle='--', alpha=0.7)
+        #     ax.axhline(pos, color='k', linewidth=1.5, linestyle='--', alpha=0.7)
 
-        # E/I region labels (top of axes, in axis coords)
-        if ei_boundary > 0:
-            ax.text(ei_boundary / (2 * N), 1.03, 'Exc',
-                    transform=ax.transAxes, ha='center', va='bottom',
-                    fontsize=8, color='#444')
-        if ei_boundary < N:
-            ax.text((ei_boundary + N) / (2 * N), 1.03, 'Inh',
-                    transform=ax.transAxes, ha='center', va='bottom',
-                    fontsize=8, color='#444')
+        # # E/I region labels  (disabled — no E/I split)
+        # if ei_boundary > 0:
+        #     ax.text(ei_boundary / (2 * N), 1.03, 'Exc',
+        #             transform=ax.transAxes, ha='center', va='bottom',
+        #             fontsize=8, color='#444')
+        # if ei_boundary < N:
+        #     ax.text((ei_boundary + N) / (2 * N), 1.03, 'Inh',
+        #             transform=ax.transAxes, ha='center', va='bottom',
+        #             fontsize=8, color='#444')
 
         ax.set_title(f'{METHOD_LABELS[m]}  ΔW_rec')
-        ax.set_xlabel('From neuron  j')
-        ax.set_ylabel('To neuron  i')
+        ax.set_xlabel('From unit  j')
+        ax.set_ylabel('To unit  i')
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label='ΔW')
 
-    fig.suptitle('Recurrent weight changes  (dashed = E/I boundary)', y=1.06)
+    fig.suptitle('Recurrent weight changes', y=1.06)
     fig.tight_layout()
     path = os.path.join(fig_dir, 'fig3_delta_rec_heatmaps.png')
     fig.savefig(path, dpi=300, bbox_inches='tight')
@@ -365,7 +365,7 @@ def analyze(results: dict, output_dir: str, ei_ratio: float = 0.8):
         results:    dict mapping method name → result dict (from trainers).
                     Each result dict must contain W_{rec,in,out}_{init,final}.
         output_dir: root output directory; figures go into output_dir/figures/.
-        ei_ratio:   excitatory fraction (for E/I boundary in heatmaps).
+        ei_ratio:   excitatory fraction (kept for API compatibility; E/I boundaries disabled).
     """
     # Only process methods that have complete weight data
     methods = [
