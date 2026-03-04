@@ -43,7 +43,8 @@ def train_es(conf) -> dict:
 
     history = {'fitness': [], 'accuracy': [], 'best_fitness': []}
     snapshots = {}
-    best_fitness = -np.inf
+    best_fitness  = -np.inf
+    best_accuracy = 0.0   # all-time best, updated when best_params changes
     best_params = params.copy()
     half_pop = conf.ea_pop_size // 2
 
@@ -72,7 +73,8 @@ def train_es(conf) -> dict:
 
         idx = np.argmax(all_fitness)
         if all_fitness[idx] > best_fitness:
-            best_fitness = all_fitness[idx]
+            best_fitness  = all_fitness[idx]
+            best_accuracy = all_acc[idx]
             sign = +1 if idx < half_pop else -1
             noise_idx = idx if idx < half_pop else idx - half_pop
             best_params = params + sign * conf.ea_sigma * noise[noise_idx]
@@ -85,14 +87,21 @@ def train_es(conf) -> dict:
         history['best_fitness'].append(float(best_fitness))
 
         if gen % conf.print_every == 0 or gen == conf.ea_generations - 1:
-            print(f"Gen {gen:4d} | mean={all_fitness.mean():+.4f} "
-                  f"best={best_fitness:+.4f} acc={all_acc.mean():.1%}")
+            print(f"Gen {gen:4d} | mean={all_acc.mean():.1%} "
+                  f"best={best_accuracy:.1%}")
 
     Wr_f, Wi_f, Wo_f = unflatten(best_params)
+
+    # Stable final estimate: re-evaluate best individual with more trials
+    final_eval    = task.evaluate_policy(RSNNPolicy(Wr_f, Wi_f, Wo_f),
+                                         n_trials=50, rng=rng)
+    best_accuracy = final_eval['accuracy']
+
     return {
         'W_rec_init': W_rec_init, 'W_in_init': W_in_init, 'W_out_init': W_out_init,
         'W_rec_final': Wr_f, 'W_in_final': Wi_f, 'W_out_final': Wo_f,
-        'best_fitness': best_fitness,
+        'best_fitness':  best_fitness,
+        'best_accuracy': best_accuracy,   # stable 50-trial estimate
         'history': history,
         'snapshots': snapshots,
         'best_gene': best_params,   # flat parameter vector for the best individual

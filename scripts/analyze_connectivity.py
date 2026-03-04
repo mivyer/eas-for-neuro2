@@ -39,9 +39,11 @@ except ImportError:
 
 # ── Global style ──────────────────────────────────────────────────────────────
 
-METHOD_ORDER  = ['bptt', 'es', 'ga']
-METHOD_LABELS = {'bptt': 'BPTT', 'es': 'ES', 'ga': 'GA'}
-METHOD_COLORS = {'bptt': '#2166ac', 'es': '#d6604d', 'ga': '#4dac26'}
+METHOD_ORDER  = ['bptt', 'es', 'ga', 'ga_oja', 'ga_oja_oja']
+METHOD_LABELS = {'bptt': 'BPTT', 'es': 'ES', 'ga': 'GA',
+                 'ga_oja': 'GA-Oja', 'ga_oja_oja': 'Oja Δ'}
+METHOD_COLORS = {'bptt': '#2166ac', 'es': '#d6604d', 'ga': '#4dac26',
+                 'ga_oja': '#9970ab', 'ga_oja_oja': '#c994c7'}
 LAYER_NAMES   = ['W_in', 'W_rec', 'W_out']
 LAYER_COLORS  = ['#4393c3', '#f4a582', '#74c476']   # blue / orange / green
 SPARSITY_THR  = 0.01
@@ -367,6 +369,24 @@ def analyze(results: dict, output_dir: str, ei_ratio: float = 0.8):
         output_dir: root output directory; figures go into output_dir/figures/.
         ei_ratio:   excitatory fraction (kept for API compatibility; E/I boundaries disabled).
     """
+    # Shallow-copy so we can add synthesized entries without mutating the caller's dict
+    results = dict(results)
+
+    # Synthesize 'ga_oja_oja': within-trial Oja ΔW (post-Oja vs evolved genotype).
+    # init  = evolved genotype weights (W_rec_final of ga_oja)
+    # final = post-Oja weights (W_rec_post_oja of ga_oja)
+    # → dW = Oja plasticity change; W_in/W_out are unchanged (dW = 0)
+    r_oja = results.get('ga_oja')
+    if r_oja is not None and r_oja.get('W_rec_post_oja') is not None:
+        results['ga_oja_oja'] = {
+            'W_rec_init':  r_oja['W_rec_final'],
+            'W_in_init':   r_oja['W_in_final'],
+            'W_out_init':  r_oja['W_out_final'],
+            'W_rec_final': r_oja['W_rec_post_oja'],
+            'W_in_final':  r_oja['W_in_post_oja'],
+            'W_out_final': r_oja['W_out_post_oja'],
+        }
+
     # Only process methods that have complete weight data
     methods = [
         m for m in METHOD_ORDER

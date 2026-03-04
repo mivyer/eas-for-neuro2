@@ -31,6 +31,7 @@ class Config:
     # GA (Genetic Algorithm)
     ga_mutation_rate: float = 0.05
     ga_mutation_std: float = 0.3
+    ea_patience: int = 999_999     # early-stop patience (default = off; use --patience N to enable)
 
     # BPTT
     bptt_iterations: int = 1000

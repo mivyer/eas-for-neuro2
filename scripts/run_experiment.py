@@ -57,11 +57,12 @@ def _save_method(result: dict, method: str, exp_dir: str) -> None:
     Save one trained method's data to {exp_dir}/{method}/.
 
     Writes:
-        weights_init.npz   — W_rec, W_in, W_out at initialisation
-        weights_final.npz  — W_rec, W_in, W_out after training
-        history.json       — per-iteration/generation learning curves
-        model.pt           — PyTorch state_dict              (BPTT only)
-        best_gene.npy      — flat genotype vector             (ES / GA only)
+        weights_init.npz      — W_rec, W_in, W_out at initialisation
+        weights_final.npz     — W_rec, W_in, W_out after training (evolved genotype for GA-Oja)
+        weights_post_oja.npz  — post-Oja weights after within-trial plasticity (GA-Oja only)
+        history.json          — per-iteration/generation learning curves
+        model.pt              — PyTorch state_dict              (BPTT only)
+        best_gene.npy         — flat genotype vector             (ES / GA only)
     """
     method_dir = os.path.join(exp_dir, method)
     os.makedirs(method_dir, exist_ok=True)
@@ -75,6 +76,12 @@ def _save_method(result: dict, method: str, exp_dir: str) -> None:
              W_rec=result['W_rec_final'],
              W_in=result['W_in_final'],
              W_out=result['W_out_final'])
+
+    if result.get('W_rec_post_oja') is not None:
+        np.savez(os.path.join(method_dir, 'weights_post_oja.npz'),
+                 W_rec=result['W_rec_post_oja'],
+                 W_in=result['W_in_post_oja'],
+                 W_out=result['W_out_post_oja'])
 
     with open(os.path.join(method_dir, 'history.json'), 'w') as f:
         json.dump(result['history'], f, indent=2, default=float)
@@ -101,7 +108,7 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
 
     Args:
         conf:         full experiment Config
-        method:       'es' | 'ga' | 'ga_stdp' | 'bptt_lif' | 'all'
+        method:       'es' | 'ga' | 'ga_oja' | 'ga_stdp' | 'bptt_lif' | 'all'
         run_bptt:     include rate-coded BPTT baseline
         save:         write full results directory to conf.output_dir
         run_analysis: compute connectivity figures (only when save=True)
@@ -146,6 +153,17 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
         timings['ga'] = time.time() - t0
         print(f"GA time: {timings['ga']:.1f}s\n")
 
+    # --- GA-Oja (Hebbian plasticity; part of 'all') ---
+    if method in ("ga_oja", "all"):
+        print("-" * 60)
+        print("Training GA-Oja (Genetic Algorithm + Oja's Rule)...")
+        print("-" * 60)
+        from trainers.train_ga_oja import train_ga_oja
+        t0 = time.time()
+        results['ga_oja'] = train_ga_oja(conf)
+        timings['ga_oja'] = time.time() - t0
+        print(f"GA-Oja time: {timings['ga_oja']:.1f}s\n")
+
     # --- GA+STDP (opt-in only; uses LIF internally) ---
     if method == "ga_stdp":
         print("-" * 60)
@@ -188,10 +206,16 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
     for name, r in results.items():
         if r is None:
             continue
-        acc = r['history']['accuracy'][-1]
         fit = r.get('best_fitness', r['history']['fitness'][-1])
         t   = timings.get(name, 0)
-        print(f"  {name:>8s}: acc={acc:.1%}  fit={fit:+.4f}  time={t:.0f}s")
+        if 'best_accuracy' in r:
+            best_acc = r['best_accuracy']
+            mean_acc = r['history']['accuracy'][-1]
+            print(f"  {name:>8s}: best_acc={best_acc:.1%}  mean_acc={mean_acc:.1%}"
+                  f"  fit={fit:+.4f}  time={t:.0f}s")
+        else:
+            acc = r['history']['accuracy'][-1]
+            print(f"  {name:>8s}: acc={acc:.1%}  fit={fit:+.4f}  time={t:.0f}s")
 
     # --- Save to disk ---
     if save:
@@ -220,9 +244,9 @@ if __name__ == "__main__":
     p.add_argument('--neurons', type=int, default=32)
     p.add_argument('--n-back',  type=int, default=2)
     p.add_argument('--method',
-                   choices=['es', 'ga', 'ga_stdp', 'bptt_lif', 'all'],
+                   choices=['es', 'ga', 'ga_oja', 'ga_stdp', 'bptt_lif', 'all'],
                    default='ga',
-                   help="'all' = es+ga+bptt. ga_stdp/bptt_lif are opt-in.")
+                   help="'all' = es+ga+ga_oja+bptt. ga_stdp/bptt_lif are opt-in.")
     p.add_argument('--no-bptt', action='store_true',
                    help='Skip rate-coded BPTT baseline')
     p.add_argument('--save', action='store_true',
@@ -235,6 +259,9 @@ if __name__ == "__main__":
     p.add_argument('--ea-gens',    type=int, default=300)
     p.add_argument('--ea-pop',     type=int, default=128)
     p.add_argument('--ea-trials',  type=int, default=20)
+    p.add_argument('--patience',   type=int, default=999_999,
+                   help='Early-stop GA/GA-Oja after this many gens with no improvement '
+                        '(default: off — runs full generations)')
     p.add_argument('--bptt-iters', type=int, default=1000)
     p.add_argument('--seed',       type=int, default=42)
     args = p.parse_args()
@@ -247,6 +274,7 @@ if __name__ == "__main__":
         ea_generations=args.ea_gens,
         ea_pop_size=args.ea_pop,
         ea_n_eval_trials=args.ea_trials,
+        ea_patience=args.patience,
         bptt_iterations=args.bptt_iters,
         seed=args.seed,
         output_dir='',  # resolved below

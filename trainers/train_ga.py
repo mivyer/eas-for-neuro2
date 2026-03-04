@@ -64,7 +64,7 @@ class GeneticAlgorithm:
     """
 
     def __init__(self, n_neurons=32, obs_dim=1, action_dim=1,
-                 pop_size=128, n_elite=4, tournament_k=3,
+                 pop_size=128, n_elite=4, tournament_k=5,
                  crossover_rate=0.7, mutation_rate=0.05,
                  mutation_std=0.3, n_eval_trials=20, seed=42):
 
@@ -179,10 +179,10 @@ class GeneticAlgorithm:
     # ------------------------------------------------------------------
 
     def tournament_select(self, population, fitnesses):
-        """Select one parent via tournament selection."""
+        """Select one parent via tournament selection. Returns (gene, index)."""
         indices = self.rng.choice(len(population), size=self.tournament_k, replace=False)
         best_idx = indices[np.argmax([fitnesses[i] for i in indices])]
-        return population[best_idx].copy()
+        return population[best_idx].copy(), int(best_idx)
 
     # ------------------------------------------------------------------
     # Crossover: neuron-level
@@ -190,15 +190,16 @@ class GeneticAlgorithm:
 
     def crossover(self, parent1, parent2):
         """
-        Neuron-level crossover: for each neuron i, pick one parent and
-        inherit that neuron's entire identity:
+        Neuron-level blend crossover: for each neuron i, draw
+        alpha_i ~ Uniform(0.3, 0.7) and interpolate all weights
+        associated with that neuron:
           - W_rec[i, :] — outgoing connections
           - W_in[i, :]  — input weights
           - W_out[:, i] — output contribution
           - sigma[i]    — mutation rate
 
-        This keeps each neuron's weight profile coherent rather than
-        mixing individual weights from different evolutionary lineages.
+        Blending keeps neuron identity coherent while allowing partial
+        contributions from both parents (unlike hard binary swaps).
         """
         N = self.n_neurons
         W_rec1, W_in1, W_out1 = self._decode(parent1)
@@ -206,17 +207,17 @@ class GeneticAlgorithm:
         sigmas1 = parent1[self.gene_length:]
         sigmas2 = parent2[self.gene_length:]
 
-        # Per-neuron binary choice: True → take from parent2
-        from_p2 = self.rng.integers(0, 2, size=N).astype(bool)
+        # Per-neuron blend coefficient: alpha_i ~ Uniform(0.3, 0.7)
+        alpha = self.rng.uniform(0.3, 0.7, size=N).astype(np.float32)
 
-        # W_rec shape (N, N): row i = outgoing edges of neuron i
-        W_rec_c = np.where(from_p2[:, None], W_rec2, W_rec1)
-        # W_in  shape (N, obs_dim): row i = input weights of neuron i
-        W_in_c  = np.where(from_p2[:, None], W_in2,  W_in1)
-        # W_out shape (action_dim, N): col i = readout contribution of neuron i
-        W_out_c = np.where(from_p2[None, :], W_out2, W_out1)
-        # Sigma: same choice as the neuron's weights
-        sigmas_c = np.where(from_p2, sigmas2, sigmas1)
+        # W_rec (N, N): row i = outgoing edges of neuron i
+        W_rec_c = alpha[:, None] * W_rec1 + (1.0 - alpha[:, None]) * W_rec2
+        # W_in  (N, obs_dim): row i = input weights of neuron i
+        W_in_c  = alpha[:, None] * W_in1  + (1.0 - alpha[:, None]) * W_in2
+        # W_out (action_dim, N): col i = readout contribution of neuron i
+        W_out_c = alpha[None, :] * W_out1 + (1.0 - alpha[None, :]) * W_out2
+        # Sigma: blend with same per-neuron alpha
+        sigmas_c = alpha * sigmas1 + (1.0 - alpha) * sigmas2
 
         weights_c = self._encode(W_rec_c, W_in_c, W_out_c)
         return np.concatenate([weights_c, sigmas_c.astype(np.float32)])
@@ -225,43 +226,50 @@ class GeneticAlgorithm:
     # Mutation: self-adaptive per-neuron rates
     # ------------------------------------------------------------------
 
-    def mutate(self, gene):
+    def mutate(self, gene, sigma_scale=1.0):
         """
         Self-adaptive mutation:
           1. Perturb each neuron's sigma via lognormal:
                sigma_i *= exp(tau * N(0,1)),  tau = 1/sqrt(2N)
              then clip to [1e-4, 1.0].
-          2. For neuron i, mutate its weights (W_rec[i,:], W_in[i,:], W_out[:,i])
-             with probability sigma_i and std mutation_std.
+          2. Compute effective mutation rates:
+               eff_sigma_i = clip(sigma_i * sigma_scale, 0, 1)
+             where sigma_scale is a rank-based multiplier (0.5 / 1.0 / 2.0).
+          3. For neuron i, mutate its weights (W_rec[i,:], W_in[i,:], W_out[:,i])
+             with probability eff_sigma_i and std mutation_std.
 
-        Sigma genes evolve alongside weights, allowing evolution to discover
-        which neurons benefit from more or less exploration.
+        sigma_scale does NOT modify the stored sigma genes — it only adjusts
+        the mutation probability for this offspring, so self-adaptation is
+        unaffected.
         """
         N = self.n_neurons
         weights = gene[:self.gene_length].copy()
         sigmas  = gene[self.gene_length:].copy()
 
-        # 1. Lognormal update of sigma genes
+        # 1. Lognormal update of sigma genes (rank scale not applied here)
         sigmas *= np.exp(self.tau * self.rng.standard_normal(N)).astype(np.float32)
-        sigmas  = np.clip(sigmas, 1e-4, 1.0)
+        sigmas  = np.clip(sigmas, 0.001, 0.1)   # cap: prevent runaway / dead exploration
 
-        # 2. Decode and mutate weights
+        # 2. Rank-based effective mutation rates (not stored back)
+        eff_sigmas = np.clip(sigmas * sigma_scale, 0.0, 1.0)
+
+        # 3. Decode and mutate weights
         W_rec, W_in, W_out = self._decode(weights)
 
-        # W_rec (N, N): row i uses sigma[i]
-        mask = self.rng.random((N, N)) < sigmas[:, None]
+        # W_rec (N, N): row i uses eff_sigmas[i]
+        mask = self.rng.random((N, N)) < eff_sigmas[:, None]
         if mask.any():
             W_rec[mask] += (self.mutation_std *
                             self.rng.standard_normal(mask.sum())).astype(np.float32)
 
-        # W_in (N, obs_dim): row i uses sigma[i]
-        mask = self.rng.random((N, self.obs_dim)) < sigmas[:, None]
+        # W_in (N, obs_dim): row i uses eff_sigmas[i]
+        mask = self.rng.random((N, self.obs_dim)) < eff_sigmas[:, None]
         if mask.any():
             W_in[mask] += (self.mutation_std *
                            self.rng.standard_normal(mask.sum())).astype(np.float32)
 
-        # W_out (action_dim, N): col i uses sigma[i]
-        mask = self.rng.random((self.action_dim, N)) < sigmas[None, :]
+        # W_out (action_dim, N): col i uses eff_sigmas[i]
+        mask = self.rng.random((self.action_dim, N)) < eff_sigmas[None, :]
         if mask.any():
             W_out[mask] += (self.mutation_std *
                             self.rng.standard_normal(mask.sum())).astype(np.float32)
@@ -273,7 +281,7 @@ class GeneticAlgorithm:
     # Main evolution loop
     # ------------------------------------------------------------------
 
-    def evolve(self, task, n_generations=300, print_every=25):
+    def evolve(self, task, n_generations=300, print_every=25, patience=100):
         """
         Run the full GA.
 
@@ -285,8 +293,12 @@ class GeneticAlgorithm:
         """
         population = self.init_population()
 
-        # Save initial best weights for comparison
-        W_rec_init, W_in_init, W_out_init = self._decode(population[0])
+        # Save population centroid as init reference (mean across all individuals).
+        # Comparable to BPTT's single-model init: ΔW measures best vs. starting centroid.
+        _all_wr, _all_wi, _all_wo = zip(*[self._decode(g) for g in population])
+        W_rec_init = np.mean(_all_wr, axis=0).astype(np.float32)
+        W_in_init  = np.mean(_all_wi, axis=0).astype(np.float32)
+        W_out_init = np.mean(_all_wo, axis=0).astype(np.float32)
 
         history = {
             'fitness':      [],   # pop mean raw fitness per gen
@@ -295,8 +307,10 @@ class GeneticAlgorithm:
             'mean_sigma':   [],   # mean per-neuron mutation rate across pop
         }
 
-        best_gene    = None
-        best_fitness = -np.inf
+        best_gene       = None
+        best_fitness    = -np.inf
+        best_accuracy   = 0.0   # all-time best, updated when best_gene changes
+        gens_no_improve = 0
 
         snapshot_gens = sorted(set(
             [0, 25, 50, 100, 150, 200, 250] + [n_generations - 1]
@@ -319,8 +333,12 @@ class GeneticAlgorithm:
 
             idx_best = int(np.argmax(raw_fitnesses))
             if raw_fitnesses[idx_best] > best_fitness:
-                best_fitness = raw_fitnesses[idx_best]
-                best_gene    = population[idx_best].copy()
+                best_fitness    = raw_fitnesses[idx_best]
+                best_gene       = population[idx_best].copy()
+                best_accuracy   = accuracies[idx_best]
+                gens_no_improve = 0
+            else:
+                gens_no_improve += 1
 
             history['fitness'].append(gen_mean_fit)
             history['accuracy'].append(gen_mean_acc)
@@ -335,15 +353,30 @@ class GeneticAlgorithm:
 
             # 5. Print
             if gen % print_every == 0 or gen == n_generations - 1:
-                print(f"Gen {gen:4d} | mean={gen_mean_fit:+.4f} "
-                      f"best={best_fitness:+.4f} acc={gen_mean_acc:.1%} "
-                      f"σ̄={mean_sigma:.4f}")
+                print(f"Gen {gen:4d} | mean={gen_mean_acc:.1%} "
+                      f"best={best_accuracy:.1%} σ̄={mean_sigma:.4f}")
+
+            # Early stopping
+            if gens_no_improve >= patience:
+                print(f"  Early stop at gen {gen} (no improvement for {patience} gens)")
+                break
 
             # 6. Build next generation
             # Sort by SHARED fitness for elitism (shared = selection pressure)
             sorted_by_shared = np.argsort(shared_fitnesses)[::-1]
             # But track elites by RAW fitness to keep the actual best performers
             sorted_by_raw    = np.argsort(raw_fitnesses)[::-1]
+
+            # Rank-based mutation scale: top 25% → 0.5×, mid 50% → 1×, bot 25% → 2×
+            n = self.pop_size
+            rank_scale = np.empty(n, dtype=np.float32)
+            for rank, idx in enumerate(sorted_by_raw):
+                if rank < n // 4:
+                    rank_scale[idx] = 0.5
+                elif rank < 3 * n // 4:
+                    rank_scale[idx] = 1.0
+                else:
+                    rank_scale[idx] = 2.0
 
             new_population = []
 
@@ -353,15 +386,15 @@ class GeneticAlgorithm:
 
             # Fill rest with offspring (tournament uses shared fitness)
             while len(new_population) < self.pop_size:
-                parent1 = self.tournament_select(population, shared_fitnesses)
-                parent2 = self.tournament_select(population, shared_fitnesses)
+                parent1, p1_idx = self.tournament_select(population, shared_fitnesses)
+                parent2, _      = self.tournament_select(population, shared_fitnesses)
 
                 if self.rng.random() < self.crossover_rate:
                     child = self.crossover(parent1, parent2)
                 else:
                     child = parent1.copy()
 
-                child = self.mutate(child)
+                child = self.mutate(child, sigma_scale=rank_scale[p1_idx])
                 new_population.append(child)
 
             population = new_population[:self.pop_size]
@@ -369,14 +402,20 @@ class GeneticAlgorithm:
         # Decode best individual's weights
         W_rec_f, W_in_f, W_out_f = self._decode(best_gene)
 
+        # Stable final estimate: re-evaluate best gene with more trials
+        final_eval    = task.evaluate_policy(self._make_policy(best_gene),
+                                             n_trials=50, rng=self.rng)
+        best_accuracy = final_eval['accuracy']
+
         return {
             'W_rec_init':  W_rec_init,  'W_in_init':  W_in_init,  'W_out_init':  W_out_init,
             'W_rec_final': W_rec_f,     'W_in_final': W_in_f,     'W_out_final': W_out_f,
-            'best_fitness': best_fitness,
-            'history':      history,
-            'snapshots':    snapshots,
+            'best_fitness':  best_fitness,
+            'best_accuracy': best_accuracy,   # stable 50-trial estimate
+            'history':       history,
+            'snapshots':     snapshots,
             'snapshot_gens': list(snapshots.keys()),
-            'best_gene':    best_gene,   # full gene (weights + sigmas)
+            'best_gene':     best_gene,   # full gene (weights + sigmas)
         }
 
 
@@ -406,7 +445,7 @@ def train_ga(conf) -> dict:
         action_dim=conf.action_dim,
         pop_size=conf.ea_pop_size,
         n_elite=max(2, conf.ea_pop_size // 32),  # ~3% elitism
-        tournament_k=3,
+        tournament_k=5,
         crossover_rate=0.7,
         mutation_rate=getattr(conf, 'ga_mutation_rate', 0.05),
         mutation_std=getattr(conf, 'ga_mutation_std', 0.3),
@@ -421,7 +460,8 @@ def train_ga(conf) -> dict:
           f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}, fitness=shared")
 
     result = ga.evolve(task, n_generations=conf.ea_generations,
-                       print_every=conf.print_every)
+                       print_every=conf.print_every,
+                       patience=conf.ea_patience)
     return result
 
 
@@ -438,7 +478,7 @@ if __name__ == "__main__":
         action_dim=5,
         pop_size=64,
         n_elite=2,
-        tournament_k=3,
+        tournament_k=5,
         crossover_rate=0.7,
         mutation_rate=0.05,
         mutation_std=0.3,

@@ -17,8 +17,14 @@ Directory layout expected:
     │   ├── weights_final.npz
     │   ├── history.json
     │   └── best_gene.npy
-    └── ga/
-        └── ...
+    ├── ga/
+    │   └── ...
+    └── ga_oja/
+        ├── weights_init.npz      — population centroid at gen 0
+        ├── weights_final.npz     — evolved genotype weights (pre-Oja)
+        ├── weights_post_oja.npz  — post-Oja weights after within-trial plasticity
+        ├── history.json
+        └── best_gene.npy
 
 Usage:
     from scripts.load_results import load_experiment, list_experiments
@@ -43,7 +49,7 @@ import os
 import json
 import numpy as np
 
-KNOWN_METHODS = ['bptt', 'bptt_lif', 'es', 'ga', 'ga_stdp']
+KNOWN_METHODS = ['bptt', 'bptt_lif', 'es', 'ga', 'ga_oja', 'ga_stdp']
 
 
 def load_experiment(path: str) -> dict:
@@ -93,6 +99,13 @@ def load_experiment(path: str) -> dict:
                 d = np.load(npz_path)
                 for k in d.files:              # 'W_rec', 'W_in', 'W_out'
                     m[f'{k}_{label}'] = d[k]  # → 'W_rec_init', etc.
+
+        # Post-Oja weights (GA-Oja only)
+        post_oja_path = os.path.join(method_dir, 'weights_post_oja.npz')
+        if os.path.exists(post_oja_path):
+            d = np.load(post_oja_path)
+            for k in d.files:                        # 'W_rec', 'W_in', 'W_out'
+                m[f'{k}_post_oja'] = d[k]            # → 'W_rec_post_oja', etc.
 
         # Learning-curve history
         hist_path = os.path.join(method_dir, 'history.json')
