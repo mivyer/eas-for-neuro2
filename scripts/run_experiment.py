@@ -96,6 +96,9 @@ def _save_method(result: dict, method: str, exp_dir: str) -> None:
 
 
 def _auto_exp_name(conf: Config) -> str:
+    if conf.task == "evidence":
+        return (f"evidence_s{conf.evidence_strength}_n{conf.noise_std}"
+                f"_neurons{conf.n_neurons}_seed{conf.seed}")
     return f"nback{conf.n_back}_neurons{conf.n_neurons}_seed{conf.seed}"
 
 
@@ -127,6 +130,9 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
     print("=" * 60)
     if conf.task == "nback":
         print(f"  {conf.n_back}-back recall, seq_len={conf.seq_length}, 5 symbols")
+    elif conf.task == "evidence":
+        print(f"  evidence accumulation: strength={conf.evidence_strength}, "
+              f"noise={conf.noise_std}, T={conf.trial_length}, resp={conf.response_length}")
 
     results = {}
     timings = {}
@@ -240,7 +246,7 @@ if __name__ == "__main__":
         description="Run thesis experiments",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    p.add_argument('--task',    choices=['nback', 'wm'], default='nback')
+    p.add_argument('--task',    choices=['nback', 'wm', 'evidence'], default='nback')
     p.add_argument('--neurons', type=int, default=32)
     p.add_argument('--n-back',  type=int, default=2)
     p.add_argument('--method',
@@ -263,7 +269,15 @@ if __name__ == "__main__":
                    help='Early-stop GA/GA-Oja after this many gens with no improvement '
                         '(default: off — runs full generations)')
     p.add_argument('--bptt-iters', type=int, default=1000)
+    p.add_argument('--bptt-lr',    type=float, default=1e-3)
+    p.add_argument('--mut-std',    type=float, default=None,
+                   help='Override ga_mutation_std (default 0.3; try 0.05-0.1 for evidence)')
     p.add_argument('--seed',       type=int, default=42)
+    # Evidence accumulation params (only used when --task evidence)
+    p.add_argument('--evidence-strength', type=float, default=0.1)
+    p.add_argument('--noise-std',         type=float, default=0.5)
+    p.add_argument('--trial-length',      type=int,   default=50)
+    p.add_argument('--response-length',   type=int,   default=5)
     args = p.parse_args()
 
     # Build a temporary conf for auto-naming (output_dir filled next)
@@ -276,9 +290,16 @@ if __name__ == "__main__":
         ea_n_eval_trials=args.ea_trials,
         ea_patience=args.patience,
         bptt_iterations=args.bptt_iters,
+        bptt_lr=args.bptt_lr,
         seed=args.seed,
+        evidence_strength=args.evidence_strength,
+        noise_std=args.noise_std,
+        trial_length=args.trial_length,
+        response_length=args.response_length,
         output_dir='',  # resolved below
     )
+    if args.mut_std is not None:
+        conf.ga_mutation_std = args.mut_std
     conf.output_dir = args.output or f"results/{_auto_exp_name(conf)}"
 
     run(conf, method=args.method, run_bptt=not args.no_bptt,

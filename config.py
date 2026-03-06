@@ -12,9 +12,15 @@ class Config:
     action_dim: int = 5    # 5-class softmax output
 
     # Task
-    task: str = "nback"         # "nback" or "wm"
+    task: str = "nback"         # "nback" | "wm" | "evidence"
     n_back: int = 2
     seq_length: int = 20
+
+    # Evidence accumulation task params (used when task="evidence")
+    evidence_strength: float = 0.1   # bias on correct channel each timestep
+    noise_std: float = 0.5           # Gaussian noise std on all channels
+    trial_length: int = 50           # total timesteps per trial
+    response_length: int = 5         # response window (last N steps)
 
     # Working memory params (used when task="wm")
     cue_duration: int = 5

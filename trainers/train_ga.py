@@ -248,7 +248,7 @@ class GeneticAlgorithm:
 
         # 1. Lognormal update of sigma genes (rank scale not applied here)
         sigmas *= np.exp(self.tau * self.rng.standard_normal(N)).astype(np.float32)
-        sigmas  = np.clip(sigmas, 0.001, 0.1)   # cap: prevent runaway / dead exploration
+        sigmas  = np.clip(sigmas, 0.005, 0.15)  # cap: prevent runaway / dead exploration
 
         # 2. Rank-based effective mutation rates (not stored back)
         eff_sigmas = np.clip(sigmas * sigma_scale, 0.0, 1.0)
@@ -431,6 +431,14 @@ def train_ga(conf) -> dict:
     task_name = getattr(conf, 'task', 'nback')
     if task_name == 'nback':
         task = LetterNBackTask(n_back=conf.n_back, seq_length=conf.seq_length)
+    elif task_name == 'evidence':
+        from envs.evidence_accumulation import EvidenceAccumulationTask
+        task = EvidenceAccumulationTask(
+            evidence_strength=conf.evidence_strength,
+            noise_std=conf.noise_std,
+            trial_length=conf.trial_length,
+            response_length=conf.response_length,
+        )
     else:
         from envs.working_memory import WorkingMemoryTask
         task = WorkingMemoryTask(
@@ -457,7 +465,7 @@ def train_ga(conf) -> dict:
     print(f"Task: {task_name} | pop={conf.ea_pop_size}, gens={conf.ea_generations}")
     print(f"elite={ga.n_elite}, tournament_k={ga.tournament_k}, "
           f"crossover=neuron-level, mut_std={ga.mutation_std}, "
-          f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}, fitness=shared")
+          f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}, sigma_cap=[0.005,0.15], fitness=shared")
 
     result = ga.evolve(task, n_generations=conf.ea_generations,
                        print_every=conf.print_every,

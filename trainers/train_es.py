@@ -10,6 +10,14 @@ from envs.working_memory import WorkingMemoryTask
 def make_task(conf):
     if conf.task == "nback":
         return LetterNBackTask(n_back=conf.n_back, seq_length=conf.seq_length)
+    if conf.task == "evidence":
+        from envs.evidence_accumulation import EvidenceAccumulationTask
+        return EvidenceAccumulationTask(
+            evidence_strength=conf.evidence_strength,
+            noise_std=conf.noise_std,
+            trial_length=conf.trial_length,
+            response_length=conf.response_length,
+        )
     return WorkingMemoryTask(
         cue_duration=conf.cue_duration,
         delay_duration=conf.delay_duration,

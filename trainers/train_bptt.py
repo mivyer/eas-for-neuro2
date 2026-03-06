@@ -31,6 +31,14 @@ def count_parameters(model):
 def make_task_torch(conf):
     if conf.task == "nback":
         return LetterNBackTaskTorch(n_back=conf.n_back, seq_length=conf.seq_length)
+    if conf.task == "evidence":
+        from envs.evidence_accumulation import EvidenceAccumulationTaskTorch
+        return EvidenceAccumulationTaskTorch(
+            evidence_strength=conf.evidence_strength,
+            noise_std=conf.noise_std,
+            trial_length=conf.trial_length,
+            response_length=conf.response_length,
+        )
     return WorkingMemoryTaskTorch(
         cue_duration=conf.cue_duration,
         delay_duration=conf.delay_duration,
@@ -57,8 +65,8 @@ def train_bptt(conf, use_lif=False) -> dict | None:
     N = conf.n_neurons
     task_torch = make_task_torch(conf)
 
-    # n-back uses 5-class softmax readout; other tasks use scalar output
-    action_dim = 5 if conf.task == "nback" else conf.action_dim
+    # 5-class softmax readout for nback and evidence; other tasks use scalar
+    action_dim = 5 if conf.task in ("nback", "evidence") else conf.action_dim
 
     if use_lif:
         from models.lif_rsnn import LIF_RSNN_Torch

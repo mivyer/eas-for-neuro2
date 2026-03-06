@@ -18,8 +18,8 @@ Genotype layout:
   weight_length = N*N + N*obs_dim + action_dim*N
   oja_gene_length = weight_length + 2            (e.g. 1346 for N=32)
 
-  eta   = exp(log_eta)   clipped to [1e-5, 0.5]
-  w_max = exp(log_wmax)  clipped to [0.5,  10.0]
+  eta   = exp(log_eta)   clipped to [1e-6, 1.0]
+  w_max = exp(log_wmax)  clipped to [0.1,  20.0]
 
 Oja's rule (applied each timestep, W_rec copy only):
   h = tanh activations (N,)
@@ -104,8 +104,8 @@ class GeneticAlgorithmOja:
 
         log_eta  = float(w[-2])
         log_wmax = float(w[-1])
-        eta   = float(np.clip(np.exp(log_eta),  1e-5, 0.5))
-        w_max = float(np.clip(np.exp(log_wmax), 0.5,  10.0))
+        eta   = float(np.clip(np.exp(log_eta),  1e-6, 1.0))
+        w_max = float(np.clip(np.exp(log_wmax), 0.1,  20.0))
 
         return W_rec, W_in, W_out, eta, w_max
 
@@ -257,7 +257,7 @@ class GeneticAlgorithmOja:
 
         # 1. Lognormal update of sigma genes
         sigmas *= np.exp(self.tau * self.rng.standard_normal(N)).astype(np.float32)
-        sigmas  = np.clip(sigmas, 0.001, 0.1)   # cap: prevent runaway / dead exploration
+        sigmas  = np.clip(sigmas, 0.005, 0.15)  # cap: prevent runaway / dead exploration
         eff_sigmas = np.clip(sigmas * sigma_scale, 0.0, 1.0)
 
         # 2. Decode and mutate weight matrices
@@ -464,6 +464,14 @@ def train_ga_oja(conf) -> dict:
     task_name = getattr(conf, 'task', 'nback')
     if task_name == 'nback':
         task = LetterNBackTask(n_back=conf.n_back, seq_length=conf.seq_length)
+    elif task_name == 'evidence':
+        from envs.evidence_accumulation import EvidenceAccumulationTask
+        task = EvidenceAccumulationTask(
+            evidence_strength=conf.evidence_strength,
+            noise_std=conf.noise_std,
+            trial_length=conf.trial_length,
+            response_length=conf.response_length,
+        )
     else:
         from envs.working_memory import WorkingMemoryTask
         task = WorkingMemoryTask(
@@ -492,7 +500,8 @@ def train_ga_oja(conf) -> dict:
     print(f"Task: {task_name} | pop={conf.ea_pop_size}, gens={conf.ea_generations}")
     print(f"elite={ga.n_elite}, tournament_k={ga.tournament_k}, "
           f"crossover=blend, mut_std={ga.mutation_std}, "
-          f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}")
+          f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}, sigma_cap=[0.005,0.15]"
+          f", eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]")
 
     result = ga.evolve(task, n_generations=conf.ea_generations,
                        print_every=conf.print_every,
