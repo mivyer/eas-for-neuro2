@@ -12,3 +12,1221 @@ EA gens: 500 | BPTT iters: 2000
 
 [1/36] neurons=32 nback=1 seed=42
 ------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback1_neurons32_seed42/
+============================================================
+  1-back recall, seq_len=20, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=21.6% best=27.9%
+Gen   25 | mean=52.5% best=59.2%
+Gen   50 | mean=57.4% best=66.3%
+Gen   75 | mean=58.1% best=67.9%
+Gen  100 | mean=58.6% best=67.9%
+Gen  125 | mean=58.7% best=67.9%
+Gen  150 | mean=59.0% best=67.9%
+Gen  175 | mean=58.7% best=68.4%
+Gen  200 | mean=59.6% best=68.4%
+Gen  225 | mean=59.7% best=68.7%
+Gen  250 | mean=60.1% best=68.7%
+Gen  275 | mean=59.7% best=68.9%
+Gen  300 | mean=59.3% best=68.9%
+Gen  325 | mean=59.9% best=70.0%
+Gen  350 | mean=59.8% best=70.0%
+Gen  375 | mean=59.4% best=70.0%
+Gen  400 | mean=59.7% best=70.0%
+Gen  425 | mean=59.4% best=70.0%
+Gen  450 | mean=59.5% best=71.3%
+Gen  475 | mean=60.0% best=71.3%
+Gen  499 | mean=59.9% best=71.3%
+ES time: 113.0s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=19.8% best=28.7% σ̄=0.0500
+Gen   25 | mean=77.7% best=96.8% σ̄=0.0572
+Gen   50 | mean=84.5% best=99.7% σ̄=0.0657
+Gen   75 | mean=85.5% best=100.0% σ̄=0.0679
+Gen  100 | mean=84.2% best=100.0% σ̄=0.0686
+Gen  125 | mean=85.5% best=100.0% σ̄=0.0707
+Gen  150 | mean=85.4% best=100.0% σ̄=0.0690
+Gen  175 | mean=87.5% best=100.0% σ̄=0.0700
+Gen  200 | mean=86.4% best=100.0% σ̄=0.0708
+Gen  225 | mean=85.6% best=100.0% σ̄=0.0692
+Gen  250 | mean=86.7% best=100.0% σ̄=0.0710
+Gen  275 | mean=86.7% best=100.0% σ̄=0.0697
+Gen  300 | mean=86.2% best=100.0% σ̄=0.0703
+Gen  325 | mean=85.8% best=100.0% σ̄=0.0720
+Gen  350 | mean=87.1% best=100.0% σ̄=0.0710
+Gen  375 | mean=88.0% best=100.0% σ̄=0.0719
+Gen  400 | mean=85.4% best=100.0% σ̄=0.0720
+Gen  425 | mean=87.2% best=100.0% σ̄=0.0732
+Gen  450 | mean=86.1% best=100.0% σ̄=0.0763
+Gen  475 | mean=84.8% best=100.0% σ̄=0.0759
+Gen  499 | mean=87.0% best=100.0% σ̄=0.0761
+GA time: 120.5s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=19.7% best=28.4% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=66.8% best=93.9% σ̄=0.0540 η=0.00369 w_max=2.55
+Gen   50 | mean=81.7% best=99.7% σ̄=0.0575 η=0.00535 w_max=3.11
+Gen   75 | mean=82.6% best=100.0% σ̄=0.0593 η=0.00753 w_max=2.54
+Gen  100 | mean=87.2% best=100.0% σ̄=0.0583 η=0.00753 w_max=2.54
+Gen  125 | mean=88.6% best=100.0% σ̄=0.0592 η=0.00753 w_max=2.54
+Gen  150 | mean=92.8% best=100.0% σ̄=0.0603 η=0.00753 w_max=2.54
+Gen  175 | mean=94.9% best=100.0% σ̄=0.0677 η=0.00753 w_max=2.54
+Gen  200 | mean=95.8% best=100.0% σ̄=0.0744 η=0.00753 w_max=2.54
+Gen  225 | mean=96.5% best=100.0% σ̄=0.0805 η=0.00753 w_max=2.54
+Gen  250 | mean=97.1% best=100.0% σ̄=0.0871 η=0.00753 w_max=2.54
+Gen  275 | mean=97.2% best=100.0% σ̄=0.0952 η=0.00753 w_max=2.54
+Gen  300 | mean=97.6% best=100.0% σ̄=0.0990 η=0.00753 w_max=2.54
+Gen  325 | mean=98.2% best=100.0% σ̄=0.1021 η=0.00753 w_max=2.54
+Gen  350 | mean=98.5% best=100.0% σ̄=0.1066 η=0.00753 w_max=2.54
+Gen  375 | mean=98.5% best=100.0% σ̄=0.1110 η=0.00753 w_max=2.54
+Gen  400 | mean=98.9% best=100.0% σ̄=0.1111 η=0.00753 w_max=2.54
+Gen  425 | mean=99.2% best=100.0% σ̄=0.1104 η=0.00753 w_max=2.54
+Gen  450 | mean=99.2% best=100.0% σ̄=0.1128 η=0.00753 w_max=2.54
+Gen  475 | mean=99.4% best=100.0% σ̄=0.1132 η=0.00753 w_max=2.54
+Gen  499 | mean=99.4% best=100.0% σ̄=0.1147 η=0.00753 w_max=2.54
+
+GA-Oja final: best_acc=99.7%  η=0.00753  w_max=2.54
+GA-Oja time: 337.2s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.6311 fitness=-1.6311 acc=12.7%
+Iter  100 | loss=0.6358 fitness=-0.6358 acc=100.0%
+Iter  200 | loss=0.0861 fitness=-0.0861 acc=100.0%
+Iter  300 | loss=0.0298 fitness=-0.0298 acc=100.0%
+Iter  400 | loss=0.0162 fitness=-0.0162 acc=100.0%
+Iter  500 | loss=0.0104 fitness=-0.0104 acc=100.0%
+Iter  600 | loss=0.0072 fitness=-0.0072 acc=100.0%
+Iter  700 | loss=0.0053 fitness=-0.0053 acc=100.0%
+Iter  800 | loss=0.0040 fitness=-0.0040 acc=100.0%
+Iter  900 | loss=0.0032 fitness=-0.0032 acc=100.0%
+Iter 1000 | loss=0.0026 fitness=-0.0026 acc=100.0%
+Iter 1100 | loss=0.0022 fitness=-0.0022 acc=100.0%
+Iter 1200 | loss=0.0018 fitness=-0.0018 acc=100.0%
+Iter 1300 | loss=0.0016 fitness=-0.0016 acc=100.0%
+Iter 1400 | loss=0.0014 fitness=-0.0014 acc=100.0%
+Iter 1500 | loss=0.0012 fitness=-0.0012 acc=100.0%
+Iter 1600 | loss=0.0010 fitness=-0.0010 acc=100.0%
+Iter 1700 | loss=0.0009 fitness=-0.0009 acc=100.0%
+Iter 1800 | loss=0.0008 fitness=-0.0008 acc=100.0%
+Iter 1900 | loss=0.0007 fitness=-0.0007 acc=100.0%
+Iter 1999 | loss=0.0006 fitness=-0.0006 acc=100.0%
+BPTT time: 6.0s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=59.4%  mean_acc=59.9%  fit=+0.7132  time=113s
+        ga: best_acc=99.1%  mean_acc=87.0%  fit=+1.0000  time=121s
+    ga_oja: best_acc=99.7%  mean_acc=99.4%  fit=+1.0000  time=337s
+      bptt: acc=100.0%  fit=-0.0006  time=6s
+  Saved results/nback1_neurons32_seed42/es/
+  Saved results/nback1_neurons32_seed42/ga/
+  Saved results/nback1_neurons32_seed42/ga_oja/
+  Saved results/nback1_neurons32_seed42/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback1_neurons32_seed42/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    3.1425 | 21.6% |     0.0% |       —
+       | W_rec |    7.1395 | 49.0% |     1.9% |       7
+       | W_out |    4.2850 | 29.4% |     0.0% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    2.1316 | 24.9% |     0.6% |       —
+       | W_rec |    4.6077 | 53.9% |     3.3% |      17
+       | W_out |    1.8060 | 21.1% |     0.6% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    2.1505 | 22.7% |     1.9% |       —
+       | W_rec |    5.1471 | 54.4% |     5.3% |      16
+       | W_out |    2.1611 | 22.8% |     5.6% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    1.7292 | 23.1% |     4.4% |       —
+       | W_rec |    4.1576 | 55.6% |     6.0% |      17
+       | W_out |    1.5861 | 21.2% |     6.2% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     4.4% |       —
+       | W_rec |    0.0593 | 100.0% |     6.2% |      17
+       | W_out |    0.0000 |  0.0% |     6.2% |       —
+--------------------------------------------------------------------
+  Saved results/nback1_neurons32_seed42/figures/fig1_weight_change_fractions.png
+  Saved results/nback1_neurons32_seed42/figures/fig2_delta_distributions.png
+  Saved results/nback1_neurons32_seed42/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback1_neurons32_seed42/figures/fig4_final_weights.png
+  Saved results/nback1_neurons32_seed42/figures/fig5_sparsity.png
+[analyze] done.
+[1/36] DONE
+
+[2/36] neurons=32 nback=1 seed=123
+------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback1_neurons32_seed123/
+============================================================
+  1-back recall, seq_len=50, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=16.8% best=21.0%
+Gen   25 | mean=35.6% best=40.3%
+Gen   50 | mean=62.1% best=66.4%
+Gen   75 | mean=91.9% best=95.1%
+Gen  100 | mean=98.5% best=99.6%
+Gen  125 | mean=99.4% best=100.0%
+Gen  150 | mean=99.6% best=100.0%
+Gen  175 | mean=99.8% best=100.0%
+Gen  200 | mean=99.8% best=100.0%
+Gen  225 | mean=99.9% best=100.0%
+Gen  250 | mean=99.9% best=100.0%
+Gen  275 | mean=99.9% best=100.0%
+Gen  300 | mean=99.9% best=100.0%
+Gen  325 | mean=99.9% best=100.0%
+Gen  350 | mean=99.9% best=100.0%
+Gen  375 | mean=99.9% best=100.0%
+Gen  400 | mean=100.0% best=100.0%
+Gen  425 | mean=100.0% best=100.0%
+Gen  450 | mean=100.0% best=100.0%
+Gen  475 | mean=100.0% best=100.0%
+Gen  499 | mean=100.0% best=100.0%
+ES time: 300.9s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=19.6% best=32.3% σ̄=0.0500
+Gen   25 | mean=75.8% best=93.1% σ̄=0.0562
+Gen   50 | mean=84.0% best=98.4% σ̄=0.0594
+Gen   75 | mean=87.5% best=99.8% σ̄=0.0597
+Gen  100 | mean=89.0% best=100.0% σ̄=0.0619
+Gen  125 | mean=89.1% best=100.0% σ̄=0.0641
+Gen  150 | mean=89.4% best=100.0% σ̄=0.0659
+Gen  175 | mean=91.3% best=100.0% σ̄=0.0661
+Gen  200 | mean=90.9% best=100.0% σ̄=0.0658
+Gen  225 | mean=91.8% best=100.0% σ̄=0.0639
+Gen  250 | mean=91.0% best=100.0% σ̄=0.0619
+Gen  275 | mean=91.4% best=100.0% σ̄=0.0596
+Gen  300 | mean=91.0% best=100.0% σ̄=0.0614
+Gen  325 | mean=91.7% best=100.0% σ̄=0.0611
+Gen  350 | mean=90.8% best=100.0% σ̄=0.0624
+Gen  375 | mean=92.2% best=100.0% σ̄=0.0617
+Gen  400 | mean=91.4% best=100.0% σ̄=0.0629
+Gen  425 | mean=91.0% best=100.0% σ̄=0.0633
+Gen  450 | mean=92.7% best=100.0% σ̄=0.0636
+Gen  475 | mean=90.6% best=100.0% σ̄=0.0677
+Gen  499 | mean=92.3% best=100.0% σ̄=0.0661
+GA time: 338.6s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=19.8% best=25.2% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=78.2% best=95.3% σ̄=0.0563 η=0.00706 w_max=0.21
+Gen   50 | mean=87.4% best=100.0% σ̄=0.0586 η=0.00624 w_max=0.18
+Gen   75 | mean=87.8% best=100.0% σ̄=0.0606 η=0.00624 w_max=0.18
+Gen  100 | mean=91.0% best=100.0% σ̄=0.0654 η=0.00624 w_max=0.18
+Gen  125 | mean=91.1% best=100.0% σ̄=0.0677 η=0.00624 w_max=0.18
+Gen  150 | mean=94.2% best=100.0% σ̄=0.0687 η=0.00624 w_max=0.18
+Gen  175 | mean=94.8% best=100.0% σ̄=0.0732 η=0.00624 w_max=0.18
+Gen  200 | mean=96.9% best=100.0% σ̄=0.0784 η=0.00624 w_max=0.18
+Gen  225 | mean=97.5% best=100.0% σ̄=0.0842 η=0.00624 w_max=0.18
+Gen  250 | mean=98.2% best=100.0% σ̄=0.0909 η=0.00624 w_max=0.18
+Gen  275 | mean=98.3% best=100.0% σ̄=0.0945 η=0.00624 w_max=0.18
+Gen  300 | mean=98.8% best=100.0% σ̄=0.0986 η=0.00624 w_max=0.18
+Gen  325 | mean=98.8% best=100.0% σ̄=0.1025 η=0.00624 w_max=0.18
+Gen  350 | mean=99.0% best=100.0% σ̄=0.1068 η=0.00624 w_max=0.18
+Gen  375 | mean=98.8% best=100.0% σ̄=0.1132 η=0.00624 w_max=0.18
+Gen  400 | mean=99.4% best=100.0% σ̄=0.1130 η=0.00624 w_max=0.18
+Gen  425 | mean=99.4% best=100.0% σ̄=0.1148 η=0.00624 w_max=0.18
+Gen  450 | mean=99.4% best=100.0% σ̄=0.1152 η=0.00624 w_max=0.18
+Gen  475 | mean=99.7% best=100.0% σ̄=0.1150 η=0.00624 w_max=0.18
+Gen  499 | mean=99.5% best=100.0% σ̄=0.1146 η=0.00624 w_max=0.18
+
+GA-Oja final: best_acc=99.9%  η=0.00624  w_max=0.18
+GA-Oja time: 877.9s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.5991 fitness=-1.5991 acc=28.7%
+Iter  100 | loss=0.5845 fitness=-0.5845 acc=100.0%
+Iter  200 | loss=0.0729 fitness=-0.0729 acc=100.0%
+Iter  300 | loss=0.0270 fitness=-0.0270 acc=100.0%
+Iter  400 | loss=0.0146 fitness=-0.0146 acc=100.0%
+Iter  500 | loss=0.0093 fitness=-0.0093 acc=100.0%
+Iter  600 | loss=0.0065 fitness=-0.0065 acc=100.0%
+Iter  700 | loss=0.0048 fitness=-0.0048 acc=100.0%
+Iter  800 | loss=0.0037 fitness=-0.0037 acc=100.0%
+Iter  900 | loss=0.0030 fitness=-0.0030 acc=100.0%
+Iter 1000 | loss=0.0024 fitness=-0.0024 acc=100.0%
+Iter 1100 | loss=0.0020 fitness=-0.0020 acc=100.0%
+Iter 1200 | loss=0.0017 fitness=-0.0017 acc=100.0%
+Iter 1300 | loss=0.0015 fitness=-0.0015 acc=100.0%
+Iter 1400 | loss=0.0013 fitness=-0.0013 acc=100.0%
+Iter 1500 | loss=0.0011 fitness=-0.0011 acc=100.0%
+Iter 1600 | loss=0.0010 fitness=-0.0010 acc=100.0%
+Iter 1700 | loss=0.0009 fitness=-0.0009 acc=100.0%
+Iter 1800 | loss=0.0008 fitness=-0.0008 acc=100.0%
+Iter 1900 | loss=0.0007 fitness=-0.0007 acc=100.0%
+Iter 1999 | loss=0.0006 fitness=-0.0006 acc=100.0%
+BPTT time: 12.3s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=99.3%  mean_acc=100.0%  fit=+1.0000  time=301s
+        ga: best_acc=99.8%  mean_acc=92.3%  fit=+1.0000  time=339s
+    ga_oja: best_acc=99.9%  mean_acc=99.5%  fit=+1.0000  time=878s
+      bptt: acc=100.0%  fit=-0.0006  time=12s
+  Saved results/nback1_neurons32_seed123/es/
+  Saved results/nback1_neurons32_seed123/ga/
+  Saved results/nback1_neurons32_seed123/ga_oja/
+  Saved results/nback1_neurons32_seed123/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback1_neurons32_seed123/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    3.0951 | 21.1% |     1.9% |       —
+       | W_rec |    7.2230 | 49.3% |     1.6% |       7
+       | W_out |    4.3477 | 29.6% |     0.0% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    1.1963 | 28.2% |     1.2% |       —
+       | W_rec |    1.9745 | 46.6% |     2.7% |      16
+       | W_out |    1.0666 | 25.2% |     2.5% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    2.4562 | 24.4% |     1.2% |       —
+       | W_rec |    5.5229 | 54.9% |     4.6% |      16
+       | W_out |    2.0877 | 20.7% |     4.4% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    1.9525 | 22.2% |     5.0% |       —
+       | W_rec |    5.0643 | 57.6% |     6.0% |      16
+       | W_out |    1.7746 | 20.2% |     5.6% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     5.0% |       —
+       | W_rec |    2.0281 | 100.0% |     5.5% |      17
+       | W_out |    0.0000 |  0.0% |     5.6% |       —
+--------------------------------------------------------------------
+  Saved results/nback1_neurons32_seed123/figures/fig1_weight_change_fractions.png
+  Saved results/nback1_neurons32_seed123/figures/fig2_delta_distributions.png
+  Saved results/nback1_neurons32_seed123/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback1_neurons32_seed123/figures/fig4_final_weights.png
+  Saved results/nback1_neurons32_seed123/figures/fig5_sparsity.png
+[analyze] done.
+[2/36] DONE
+
+[3/36] neurons=32 nback=1 seed=456
+------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback1_neurons32_seed456/
+============================================================
+  1-back recall, seq_len=50, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=18.0% best=21.8%
+Gen   25 | mean=31.7% best=35.8%
+Gen   50 | mean=37.9% best=44.9%
+Gen   75 | mean=46.4% best=56.0%
+Gen  100 | mean=56.8% best=61.8%
+Gen  125 | mean=59.3% best=64.7%
+Gen  150 | mean=67.0% best=76.4%
+Gen  175 | mean=77.5% best=81.2%
+Gen  200 | mean=78.1% best=82.4%
+Gen  225 | mean=78.7% best=83.5%
+Gen  250 | mean=78.8% best=83.5%
+Gen  275 | mean=79.0% best=83.5%
+Gen  300 | mean=79.1% best=83.5%
+Gen  325 | mean=79.3% best=84.3%
+Gen  350 | mean=79.5% best=84.4%
+Gen  375 | mean=79.6% best=84.4%
+Gen  400 | mean=79.7% best=84.4%
+Gen  425 | mean=80.0% best=84.4%
+Gen  450 | mean=79.9% best=84.4%
+Gen  475 | mean=79.7% best=84.4%
+Gen  499 | mean=80.1% best=84.8%
+ES time: 282.6s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=20.4% best=31.5% σ̄=0.0500
+Gen   25 | mean=68.6% best=84.9% σ̄=0.0551
+Gen   50 | mean=83.6% best=98.6% σ̄=0.0580
+Gen   75 | mean=83.2% best=99.7% σ̄=0.0640
+Gen  100 | mean=83.5% best=100.0% σ̄=0.0652
+Gen  125 | mean=84.6% best=100.0% σ̄=0.0659
+Gen  150 | mean=81.5% best=100.0% σ̄=0.0670
+Gen  175 | mean=84.7% best=100.0% σ̄=0.0671
+Gen  200 | mean=84.0% best=100.0% σ̄=0.0682
+Gen  225 | mean=82.9% best=100.0% σ̄=0.0716
+Gen  250 | mean=84.1% best=100.0% σ̄=0.0719
+Gen  275 | mean=82.9% best=100.0% σ̄=0.0715
+Gen  300 | mean=84.0% best=100.0% σ̄=0.0706
+Gen  325 | mean=85.0% best=100.0% σ̄=0.0717
+Gen  350 | mean=84.3% best=100.0% σ̄=0.0718
+Gen  375 | mean=85.8% best=100.0% σ̄=0.0719
+Gen  400 | mean=84.6% best=100.0% σ̄=0.0714
+Gen  425 | mean=84.3% best=100.0% σ̄=0.0724
+Gen  450 | mean=84.8% best=100.0% σ̄=0.0724
+Gen  475 | mean=83.4% best=100.0% σ̄=0.0724
+Gen  499 | mean=84.1% best=100.0% σ̄=0.0715
+GA time: 248.9s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=20.3% best=28.8% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=75.9% best=96.0% σ̄=0.0550 η=0.00200 w_max=2.73
+Gen   50 | mean=82.2% best=99.9% σ̄=0.0560 η=0.00477 w_max=1.57
+Gen   75 | mean=84.3% best=100.0% σ̄=0.0590 η=0.00477 w_max=1.57
+Gen  100 | mean=86.0% best=100.0% σ̄=0.0578 η=0.00477 w_max=1.57
+Gen  125 | mean=84.9% best=100.0% σ̄=0.0582 η=0.00477 w_max=1.57
+Gen  150 | mean=87.5% best=100.0% σ̄=0.0578 η=0.00477 w_max=1.57
+Gen  175 | mean=85.8% best=100.0% σ̄=0.0580 η=0.00477 w_max=1.57
+Gen  200 | mean=85.9% best=100.0% σ̄=0.0572 η=0.00477 w_max=1.57
+Gen  225 | mean=84.8% best=100.0% σ̄=0.0593 η=0.00477 w_max=1.57
+Gen  250 | mean=85.8% best=100.0% σ̄=0.0591 η=0.00477 w_max=1.57
+Gen  275 | mean=94.5% best=100.0% σ̄=0.0650 η=0.00477 w_max=1.57
+Gen  300 | mean=95.7% best=100.0% σ̄=0.0702 η=0.00477 w_max=1.57
+Gen  325 | mean=97.1% best=100.0% σ̄=0.0784 η=0.00477 w_max=1.57
+Gen  350 | mean=96.9% best=100.0% σ̄=0.0865 η=0.00477 w_max=1.57
+Gen  375 | mean=96.9% best=100.0% σ̄=0.0959 η=0.00477 w_max=1.57
+Gen  400 | mean=97.5% best=100.0% σ̄=0.1000 η=0.00477 w_max=1.57
+Gen  425 | mean=97.8% best=100.0% σ̄=0.1032 η=0.00477 w_max=1.57
+Gen  450 | mean=98.2% best=100.0% σ̄=0.1052 η=0.00477 w_max=1.57
+Gen  475 | mean=98.6% best=100.0% σ̄=0.1102 η=0.00477 w_max=1.57
+Gen  499 | mean=99.2% best=100.0% σ̄=0.1125 η=0.00477 w_max=1.57
+
+GA-Oja final: best_acc=99.6%  η=0.00477  w_max=1.57
+GA-Oja time: 786.7s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.6093 fitness=-1.6093 acc=19.9%
+Iter  100 | loss=0.6074 fitness=-0.6074 acc=100.0%
+Iter  200 | loss=0.0821 fitness=-0.0821 acc=100.0%
+Iter  300 | loss=0.0295 fitness=-0.0295 acc=100.0%
+Iter  400 | loss=0.0156 fitness=-0.0156 acc=100.0%
+Iter  500 | loss=0.0098 fitness=-0.0098 acc=100.0%
+Iter  600 | loss=0.0067 fitness=-0.0067 acc=100.0%
+Iter  700 | loss=0.0049 fitness=-0.0049 acc=100.0%
+Iter  800 | loss=0.0038 fitness=-0.0038 acc=100.0%
+Iter  900 | loss=0.0030 fitness=-0.0030 acc=100.0%
+Iter 1000 | loss=0.0024 fitness=-0.0024 acc=100.0%
+Iter 1100 | loss=0.0020 fitness=-0.0020 acc=100.0%
+Iter 1200 | loss=0.0017 fitness=-0.0017 acc=100.0%
+Iter 1300 | loss=0.0015 fitness=-0.0015 acc=100.0%
+Iter 1400 | loss=0.0013 fitness=-0.0013 acc=100.0%
+Iter 1500 | loss=0.0011 fitness=-0.0011 acc=100.0%
+Iter 1600 | loss=0.0010 fitness=-0.0010 acc=100.0%
+Iter 1700 | loss=0.0009 fitness=-0.0009 acc=100.0%
+Iter 1800 | loss=0.0008 fitness=-0.0008 acc=100.0%
+Iter 1900 | loss=0.0007 fitness=-0.0007 acc=100.0%
+Iter 1999 | loss=0.0006 fitness=-0.0006 acc=100.0%
+BPTT time: 10.5s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=81.4%  mean_acc=80.1%  fit=+0.8480  time=283s
+        ga: best_acc=99.8%  mean_acc=84.1%  fit=+1.0000  time=249s
+    ga_oja: best_acc=99.6%  mean_acc=99.2%  fit=+1.0000  time=787s
+      bptt: acc=100.0%  fit=-0.0006  time=10s
+  Saved results/nback1_neurons32_seed456/es/
+  Saved results/nback1_neurons32_seed456/ga/
+  Saved results/nback1_neurons32_seed456/ga_oja/
+  Saved results/nback1_neurons32_seed456/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback1_neurons32_seed456/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    3.1460 | 21.0% |     1.2% |       —
+       | W_rec |    7.4680 | 49.8% |     1.9% |       7
+       | W_out |    4.3855 | 29.2% |     1.2% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    1.8694 | 25.8% |     3.8% |       —
+       | W_rec |    3.7790 | 52.2% |     2.8% |      16
+       | W_out |    1.5969 | 22.0% |     3.1% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    1.9313 | 21.9% |     5.0% |       —
+       | W_rec |    4.7331 | 53.8% |     4.6% |      17
+       | W_out |    2.1397 | 24.3% |     3.8% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    1.9475 | 23.5% |     7.5% |       —
+       | W_rec |    4.6478 | 56.0% |     5.3% |      17
+       | W_out |    1.7010 | 20.5% |     3.1% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     7.5% |       —
+       | W_rec |    0.1675 | 100.0% |     5.9% |      17
+       | W_out |    0.0000 |  0.0% |     3.1% |       —
+--------------------------------------------------------------------
+  Saved results/nback1_neurons32_seed456/figures/fig1_weight_change_fractions.png
+  Saved results/nback1_neurons32_seed456/figures/fig2_delta_distributions.png
+  Saved results/nback1_neurons32_seed456/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback1_neurons32_seed456/figures/fig4_final_weights.png
+  Saved results/nback1_neurons32_seed456/figures/fig5_sparsity.png
+[analyze] done.
+[3/36] DONE
+
+[4/36] neurons=32 nback=2 seed=42
+------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback2_neurons32_seed42/
+============================================================
+  2-back recall, seq_len=20, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=18.0% best=22.5%
+Gen   25 | mean=37.7% best=45.6%
+Gen   50 | mean=60.9% best=67.2%
+Gen   75 | mean=72.4% best=79.7%
+Gen  100 | mean=77.0% best=84.7%
+Gen  125 | mean=78.0% best=84.7%
+Gen  150 | mean=78.3% best=85.3%
+Gen  175 | mean=78.6% best=86.7%
+Gen  200 | mean=79.5% best=86.7%
+Gen  225 | mean=82.9% best=88.1%
+Gen  250 | mean=89.7% best=94.7%
+Gen  275 | mean=95.8% best=99.4%
+Gen  300 | mean=98.2% best=100.0%
+Gen  325 | mean=98.9% best=100.0%
+Gen  350 | mean=99.2% best=100.0%
+Gen  375 | mean=99.5% best=100.0%
+Gen  400 | mean=99.6% best=100.0%
+Gen  425 | mean=99.7% best=100.0%
+Gen  450 | mean=99.7% best=100.0%
+Gen  475 | mean=99.7% best=100.0%
+Gen  499 | mean=99.8% best=100.0%
+ES time: 110.7s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=20.5% best=32.8% σ̄=0.0500
+Gen   25 | mean=61.5% best=81.7% σ̄=0.0568
+Gen   50 | mean=70.9% best=91.7% σ̄=0.0628
+Gen   75 | mean=77.9% best=96.9% σ̄=0.0657
+Gen  100 | mean=74.6% best=98.3% σ̄=0.0679
+Gen  125 | mean=75.5% best=98.3% σ̄=0.0673
+Gen  150 | mean=76.4% best=98.3% σ̄=0.0675
+Gen  175 | mean=77.2% best=98.3% σ̄=0.0668
+Gen  200 | mean=78.6% best=98.3% σ̄=0.0674
+Gen  225 | mean=77.4% best=98.3% σ̄=0.0691
+Gen  250 | mean=77.8% best=98.9% σ̄=0.0686
+Gen  275 | mean=77.7% best=98.9% σ̄=0.0681
+Gen  300 | mean=80.7% best=98.9% σ̄=0.0663
+Gen  325 | mean=79.6% best=98.9% σ̄=0.0667
+Gen  350 | mean=78.9% best=98.9% σ̄=0.0674
+Gen  375 | mean=79.9% best=98.9% σ̄=0.0673
+Gen  400 | mean=80.1% best=99.2% σ̄=0.0677
+Gen  425 | mean=80.2% best=99.2% σ̄=0.0696
+Gen  450 | mean=79.7% best=99.2% σ̄=0.0691
+Gen  475 | mean=81.8% best=99.2% σ̄=0.0699
+Gen  499 | mean=83.2% best=99.2% σ̄=0.0685
+GA time: 115.3s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=20.4% best=32.8% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=58.9% best=79.4% σ̄=0.0581 η=0.01229 w_max=3.94
+Gen   50 | mean=70.7% best=95.0% σ̄=0.0637 η=0.00771 w_max=2.05
+Gen   75 | mean=70.1% best=95.0% σ̄=0.0663 η=0.00771 w_max=2.05
+Gen  100 | mean=70.0% best=95.3% σ̄=0.0689 η=0.00771 w_max=2.05
+Gen  125 | mean=71.3% best=95.3% σ̄=0.0677 η=0.00771 w_max=2.05
+Gen  150 | mean=69.0% best=96.4% σ̄=0.0683 η=0.00556 w_max=3.31
+Gen  175 | mean=74.6% best=96.4% σ̄=0.0673 η=0.00556 w_max=3.31
+Gen  200 | mean=74.3% best=97.2% σ̄=0.0694 η=0.00525 w_max=2.50
+Gen  225 | mean=75.7% best=98.1% σ̄=0.0706 η=0.00525 w_max=2.50
+Gen  250 | mean=72.9% best=98.1% σ̄=0.0720 η=0.00525 w_max=2.50
+Gen  275 | mean=74.8% best=98.1% σ̄=0.0704 η=0.00525 w_max=2.50
+Gen  300 | mean=73.0% best=98.1% σ̄=0.0696 η=0.00525 w_max=2.50
+Gen  325 | mean=73.6% best=98.1% σ̄=0.0714 η=0.00525 w_max=2.50
+Gen  350 | mean=74.4% best=98.1% σ̄=0.0707 η=0.00525 w_max=2.50
+Gen  375 | mean=75.5% best=98.1% σ̄=0.0710 η=0.00525 w_max=2.50
+Gen  400 | mean=78.2% best=98.1% σ̄=0.0694 η=0.00525 w_max=2.50
+Gen  425 | mean=78.5% best=98.1% σ̄=0.0699 η=0.00525 w_max=2.50
+Gen  450 | mean=80.9% best=98.1% σ̄=0.0676 η=0.00525 w_max=2.50
+Gen  475 | mean=80.2% best=98.1% σ̄=0.0696 η=0.00525 w_max=2.50
+Gen  499 | mean=81.3% best=98.1% σ̄=0.0733 η=0.00525 w_max=2.50
+
+GA-Oja final: best_acc=96.0%  η=0.00525  w_max=2.50
+GA-Oja time: 296.8s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.6049 fitness=-1.6049 acc=25.2%
+Iter  100 | loss=0.6399 fitness=-0.6399 acc=90.3%
+Iter  200 | loss=0.1184 fitness=-0.1184 acc=100.0%
+Iter  300 | loss=0.0419 fitness=-0.0419 acc=100.0%
+Iter  400 | loss=0.0237 fitness=-0.0237 acc=100.0%
+Iter  500 | loss=0.0156 fitness=-0.0156 acc=100.0%
+Iter  600 | loss=0.0110 fitness=-0.0110 acc=100.0%
+Iter  700 | loss=0.0084 fitness=-0.0084 acc=100.0%
+Iter  800 | loss=0.0066 fitness=-0.0066 acc=100.0%
+Iter  900 | loss=0.0052 fitness=-0.0052 acc=100.0%
+Iter 1000 | loss=0.0043 fitness=-0.0043 acc=100.0%
+Iter 1100 | loss=0.0036 fitness=-0.0036 acc=100.0%
+Iter 1200 | loss=0.0032 fitness=-0.0032 acc=100.0%
+Iter 1300 | loss=0.0025 fitness=-0.0025 acc=100.0%
+Iter 1400 | loss=0.0022 fitness=-0.0022 acc=100.0%
+Iter 1500 | loss=0.0020 fitness=-0.0020 acc=100.0%
+Iter 1600 | loss=0.0017 fitness=-0.0017 acc=100.0%
+Iter 1700 | loss=0.0015 fitness=-0.0015 acc=100.0%
+Iter 1800 | loss=0.0014 fitness=-0.0014 acc=100.0%
+Iter 1900 | loss=0.0013 fitness=-0.0013 acc=100.0%
+Iter 1999 | loss=0.0011 fitness=-0.0011 acc=100.0%
+BPTT time: 5.6s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=98.4%  mean_acc=99.8%  fit=+1.0000  time=111s
+        ga: best_acc=95.9%  mean_acc=83.2%  fit=+0.9917  time=115s
+    ga_oja: best_acc=96.0%  mean_acc=81.3%  fit=+0.9806  time=297s
+      bptt: acc=100.0%  fit=-0.0011  time=6s
+  Saved results/nback2_neurons32_seed42/es/
+  Saved results/nback2_neurons32_seed42/ga/
+  Saved results/nback2_neurons32_seed42/ga_oja/
+  Saved results/nback2_neurons32_seed42/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback2_neurons32_seed42/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    2.4346 | 17.2% |     3.1% |       —
+       | W_rec |    6.9775 | 49.2% |     1.2% |       8
+       | W_out |    4.7645 | 33.6% |     0.6% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    1.6800 | 24.5% |     0.6% |       —
+       | W_rec |    3.4719 | 50.7% |     3.5% |      16
+       | W_out |    1.7008 | 24.8% |     2.5% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    3.2781 | 24.8% |     3.8% |       —
+       | W_rec |    7.0231 | 53.1% |     4.1% |      16
+       | W_out |    2.9212 | 22.1% |     3.1% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    2.9150 | 26.5% |     4.4% |       —
+       | W_rec |    5.9670 | 54.1% |     4.1% |      17
+       | W_out |    2.1383 | 19.4% |     5.6% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     4.4% |       —
+       | W_rec |    0.2160 | 100.0% |     4.1% |      17
+       | W_out |    0.0000 |  0.0% |     5.6% |       —
+--------------------------------------------------------------------
+  Saved results/nback2_neurons32_seed42/figures/fig1_weight_change_fractions.png
+  Saved results/nback2_neurons32_seed42/figures/fig2_delta_distributions.png
+  Saved results/nback2_neurons32_seed42/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback2_neurons32_seed42/figures/fig4_final_weights.png
+  Saved results/nback2_neurons32_seed42/figures/fig5_sparsity.png
+[analyze] done.
+[4/36] DONE
+
+[5/36] neurons=32 nback=2 seed=123
+------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback2_neurons32_seed123/
+============================================================
+  2-back recall, seq_len=20, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=21.3% best=26.9%
+Gen   25 | mean=40.5% best=46.7%
+Gen   50 | mean=72.0% best=81.9%
+Gen   75 | mean=92.1% best=96.7%
+Gen  100 | mean=97.2% best=99.4%
+Gen  125 | mean=98.8% best=100.0%
+Gen  150 | mean=99.2% best=100.0%
+Gen  175 | mean=99.5% best=100.0%
+Gen  200 | mean=99.6% best=100.0%
+Gen  225 | mean=99.7% best=100.0%
+Gen  250 | mean=99.8% best=100.0%
+Gen  275 | mean=99.8% best=100.0%
+Gen  300 | mean=99.9% best=100.0%
+Gen  325 | mean=99.9% best=100.0%
+Gen  350 | mean=99.9% best=100.0%
+Gen  375 | mean=99.9% best=100.0%
+Gen  400 | mean=99.9% best=100.0%
+Gen  425 | mean=99.9% best=100.0%
+Gen  450 | mean=99.9% best=100.0%
+Gen  475 | mean=99.9% best=100.0%
+Gen  499 | mean=99.9% best=100.0%
+ES time: 106.5s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=19.9% best=29.7% σ̄=0.0500
+Gen   25 | mean=60.3% best=77.2% σ̄=0.0546
+Gen   50 | mean=73.2% best=89.7% σ̄=0.0573
+Gen   75 | mean=76.1% best=93.9% σ̄=0.0641
+Gen  100 | mean=78.8% best=96.4% σ̄=0.0711
+Gen  125 | mean=76.7% best=98.1% σ̄=0.0726
+Gen  150 | mean=75.8% best=98.1% σ̄=0.0732
+Gen  175 | mean=77.5% best=98.1% σ̄=0.0714
+Gen  200 | mean=77.8% best=98.3% σ̄=0.0729
+Gen  225 | mean=78.3% best=98.6% σ̄=0.0716
+Gen  250 | mean=80.7% best=98.6% σ̄=0.0710
+Gen  275 | mean=77.0% best=98.6% σ̄=0.0719
+Gen  300 | mean=76.4% best=98.6% σ̄=0.0707
+Gen  325 | mean=77.5% best=98.6% σ̄=0.0729
+Gen  350 | mean=78.5% best=98.6% σ̄=0.0700
+Gen  375 | mean=77.7% best=99.2% σ̄=0.0703
+Gen  400 | mean=78.6% best=99.2% σ̄=0.0715
+Gen  425 | mean=78.7% best=99.2% σ̄=0.0720
+Gen  450 | mean=79.3% best=99.2% σ̄=0.0700
+Gen  475 | mean=77.9% best=99.2% σ̄=0.0689
+Gen  499 | mean=79.8% best=99.2% σ̄=0.0696
+GA time: 111.5s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=19.8% best=28.6% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=56.3% best=75.8% σ̄=0.0575 η=0.00799 w_max=3.00
+Gen   50 | mean=72.2% best=92.5% σ̄=0.0617 η=0.00298 w_max=0.93
+Gen   75 | mean=75.1% best=96.1% σ̄=0.0674 η=0.00102 w_max=1.05
+Gen  100 | mean=74.3% best=96.1% σ̄=0.0686 η=0.00102 w_max=1.05
+Gen  125 | mean=79.3% best=98.9% σ̄=0.0749 η=0.00247 w_max=0.22
+Gen  150 | mean=79.9% best=99.4% σ̄=0.0794 η=0.00217 w_max=0.23
+Gen  175 | mean=84.7% best=100.0% σ̄=0.0823 η=0.00217 w_max=0.21
+Gen  200 | mean=85.7% best=100.0% σ̄=0.0829 η=0.00217 w_max=0.21
+Gen  225 | mean=84.2% best=100.0% σ̄=0.0835 η=0.00217 w_max=0.21
+Gen  250 | mean=85.6% best=100.0% σ̄=0.0819 η=0.00217 w_max=0.21
+Gen  275 | mean=80.9% best=100.0% σ̄=0.0841 η=0.00217 w_max=0.21
+Gen  300 | mean=80.5% best=100.0% σ̄=0.0844 η=0.00217 w_max=0.21
+Gen  325 | mean=83.5% best=100.0% σ̄=0.0836 η=0.00217 w_max=0.21
+Gen  350 | mean=84.1% best=100.0% σ̄=0.0805 η=0.00217 w_max=0.21
+Gen  375 | mean=82.8% best=100.0% σ̄=0.0814 η=0.00217 w_max=0.21
+Gen  400 | mean=86.1% best=100.0% σ̄=0.0814 η=0.00217 w_max=0.21
+Gen  425 | mean=84.3% best=100.0% σ̄=0.0814 η=0.00217 w_max=0.21
+Gen  450 | mean=84.8% best=100.0% σ̄=0.0826 η=0.00217 w_max=0.21
+Gen  475 | mean=84.8% best=100.0% σ̄=0.0801 η=0.00217 w_max=0.21
+Gen  499 | mean=83.8% best=100.0% σ̄=0.0816 η=0.00217 w_max=0.21
+
+GA-Oja final: best_acc=99.1%  η=0.00217  w_max=0.21
+GA-Oja time: 294.0s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.6053 fitness=-1.6053 acc=21.8%
+Iter  100 | loss=0.6313 fitness=-0.6313 acc=94.2%
+Iter  200 | loss=0.0981 fitness=-0.0981 acc=100.0%
+Iter  300 | loss=0.0386 fitness=-0.0386 acc=100.0%
+Iter  400 | loss=0.0220 fitness=-0.0220 acc=100.0%
+Iter  500 | loss=0.0137 fitness=-0.0137 acc=100.0%
+Iter  600 | loss=0.0103 fitness=-0.0103 acc=100.0%
+Iter  700 | loss=0.0073 fitness=-0.0073 acc=100.0%
+Iter  800 | loss=0.0061 fitness=-0.0061 acc=100.0%
+Iter  900 | loss=0.0048 fitness=-0.0048 acc=100.0%
+Iter 1000 | loss=0.0040 fitness=-0.0040 acc=100.0%
+Iter 1100 | loss=0.0031 fitness=-0.0031 acc=100.0%
+Iter 1200 | loss=0.0027 fitness=-0.0027 acc=100.0%
+Iter 1300 | loss=0.0024 fitness=-0.0024 acc=100.0%
+Iter 1400 | loss=0.0020 fitness=-0.0020 acc=100.0%
+Iter 1500 | loss=0.0018 fitness=-0.0018 acc=100.0%
+Iter 1600 | loss=0.0015 fitness=-0.0015 acc=100.0%
+Iter 1700 | loss=0.0013 fitness=-0.0013 acc=100.0%
+Iter 1800 | loss=0.0012 fitness=-0.0012 acc=100.0%
+Iter 1900 | loss=0.0010 fitness=-0.0010 acc=100.0%
+Iter 1999 | loss=0.0009 fitness=-0.0009 acc=100.0%
+BPTT time: 5.4s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=97.4%  mean_acc=99.9%  fit=+1.0000  time=107s
+        ga: best_acc=97.6%  mean_acc=79.8%  fit=+0.9917  time=111s
+    ga_oja: best_acc=99.1%  mean_acc=83.8%  fit=+1.0000  time=294s
+      bptt: acc=100.0%  fit=-0.0009  time=5s
+  Saved results/nback2_neurons32_seed123/es/
+  Saved results/nback2_neurons32_seed123/ga/
+  Saved results/nback2_neurons32_seed123/ga_oja/
+  Saved results/nback2_neurons32_seed123/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback2_neurons32_seed123/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    2.5139 | 17.7% |     2.5% |       —
+       | W_rec |    6.9375 | 48.8% |     1.7% |       8
+       | W_out |    4.7547 | 33.5% |     0.0% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    1.1641 | 25.6% |     1.9% |       —
+       | W_rec |    2.3121 | 50.9% |     3.4% |      17
+       | W_out |    1.0664 | 23.5% |     2.5% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    2.8914 | 23.3% |     3.1% |       —
+       | W_rec |    6.8560 | 55.2% |     2.8% |      17
+       | W_out |    2.6726 | 21.5% |     5.0% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    2.9309 | 22.2% |     1.2% |       —
+       | W_rec |    7.6261 | 57.7% |     2.6% |      16
+       | W_out |    2.6646 | 20.2% |     0.0% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     1.2% |       —
+       | W_rec |    3.8388 | 100.0% |     3.0% |      17
+       | W_out |    0.0000 |  0.0% |     0.0% |       —
+--------------------------------------------------------------------
+  Saved results/nback2_neurons32_seed123/figures/fig1_weight_change_fractions.png
+  Saved results/nback2_neurons32_seed123/figures/fig2_delta_distributions.png
+  Saved results/nback2_neurons32_seed123/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback2_neurons32_seed123/figures/fig4_final_weights.png
+  Saved results/nback2_neurons32_seed123/figures/fig5_sparsity.png
+[analyze] done.
+[5/36] DONE
+
+[6/36] neurons=32 nback=2 seed=456
+------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback2_neurons32_seed456/
+============================================================
+  2-back recall, seq_len=20, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=18.9% best=25.3%
+Gen   25 | mean=31.9% best=38.3%
+Gen   50 | mean=42.8% best=50.0%
+Gen   75 | mean=55.6% best=63.3%
+Gen  100 | mean=72.2% best=77.5%
+Gen  125 | mean=87.0% best=91.9%
+Gen  150 | mean=94.3% best=97.8%
+Gen  175 | mean=97.6% best=100.0%
+Gen  200 | mean=98.4% best=100.0%
+Gen  225 | mean=99.1% best=100.0%
+Gen  250 | mean=99.3% best=100.0%
+Gen  275 | mean=99.5% best=100.0%
+Gen  300 | mean=99.6% best=100.0%
+Gen  325 | mean=99.7% best=100.0%
+Gen  350 | mean=99.7% best=100.0%
+Gen  375 | mean=99.8% best=100.0%
+Gen  400 | mean=99.8% best=100.0%
+Gen  425 | mean=99.8% best=100.0%
+Gen  450 | mean=99.9% best=100.0%
+Gen  475 | mean=99.9% best=100.0%
+Gen  499 | mean=99.9% best=100.0%
+ES time: 104.0s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=19.8% best=31.9% σ̄=0.0500
+Gen   25 | mean=60.9% best=84.4% σ̄=0.0573
+Gen   50 | mean=71.3% best=90.8% σ̄=0.0623
+Gen   75 | mean=74.7% best=96.4% σ̄=0.0639
+Gen  100 | mean=79.1% best=96.9% σ̄=0.0650
+Gen  125 | mean=82.1% best=98.3% σ̄=0.0678
+Gen  150 | mean=80.8% best=98.3% σ̄=0.0673
+Gen  175 | mean=78.1% best=99.2% σ̄=0.0697
+Gen  200 | mean=83.9% best=99.2% σ̄=0.0708
+Gen  225 | mean=82.9% best=99.4% σ̄=0.0739
+Gen  250 | mean=80.5% best=99.4% σ̄=0.0729
+Gen  275 | mean=83.5% best=99.4% σ̄=0.0719
+Gen  300 | mean=81.5% best=99.7% σ̄=0.0720
+Gen  325 | mean=81.9% best=99.7% σ̄=0.0721
+Gen  350 | mean=82.4% best=99.7% σ̄=0.0716
+Gen  375 | mean=82.4% best=99.7% σ̄=0.0729
+Gen  400 | mean=80.8% best=99.7% σ̄=0.0720
+Gen  425 | mean=81.6% best=99.7% σ̄=0.0730
+Gen  450 | mean=82.8% best=99.7% σ̄=0.0729
+Gen  475 | mean=81.7% best=99.7% σ̄=0.0730
+Gen  499 | mean=80.8% best=99.7% σ̄=0.0730
+GA time: 113.5s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=20.3% best=29.2% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=63.9% best=85.3% σ̄=0.0584 η=0.00435 w_max=0.67
+Gen   50 | mean=79.3% best=97.8% σ̄=0.0669 η=0.00886 w_max=0.33
+Gen   75 | mean=80.6% best=99.4% σ̄=0.0673 η=0.00479 w_max=0.22
+Gen  100 | mean=80.2% best=99.4% σ̄=0.0675 η=0.00540 w_max=0.19
+Gen  125 | mean=82.0% best=100.0% σ̄=0.0678 η=0.00540 w_max=0.19
+Gen  150 | mean=79.6% best=100.0% σ̄=0.0687 η=0.00540 w_max=0.19
+Gen  175 | mean=81.6% best=100.0% σ̄=0.0695 η=0.00540 w_max=0.19
+Gen  200 | mean=82.3% best=100.0% σ̄=0.0709 η=0.00540 w_max=0.19
+Gen  225 | mean=82.6% best=100.0% σ̄=0.0744 η=0.00540 w_max=0.19
+Gen  250 | mean=82.5% best=100.0% σ̄=0.0781 η=0.00540 w_max=0.19
+Gen  275 | mean=82.4% best=100.0% σ̄=0.0766 η=0.00540 w_max=0.19
+Gen  300 | mean=82.4% best=100.0% σ̄=0.0775 η=0.00540 w_max=0.19
+Gen  325 | mean=83.6% best=100.0% σ̄=0.0771 η=0.00540 w_max=0.19
+Gen  350 | mean=82.0% best=100.0% σ̄=0.0772 η=0.00540 w_max=0.19
+Gen  375 | mean=84.3% best=100.0% σ̄=0.0780 η=0.00540 w_max=0.19
+Gen  400 | mean=83.6% best=100.0% σ̄=0.0816 η=0.00540 w_max=0.19
+Gen  425 | mean=82.0% best=100.0% σ̄=0.0808 η=0.00540 w_max=0.19
+Gen  450 | mean=84.2% best=100.0% σ̄=0.0824 η=0.00540 w_max=0.19
+Gen  475 | mean=80.6% best=100.0% σ̄=0.0809 η=0.00540 w_max=0.19
+Gen  499 | mean=83.6% best=100.0% σ̄=0.0836 η=0.00540 w_max=0.19
+
+GA-Oja final: best_acc=99.0%  η=0.00540  w_max=0.19
+GA-Oja time: 295.8s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.6181 fitness=-1.6181 acc=17.5%
+Iter  100 | loss=0.6258 fitness=-0.6258 acc=98.4%
+Iter  200 | loss=0.1018 fitness=-0.1018 acc=100.0%
+Iter  300 | loss=0.0405 fitness=-0.0405 acc=100.0%
+Iter  400 | loss=0.0228 fitness=-0.0228 acc=100.0%
+Iter  500 | loss=0.0148 fitness=-0.0148 acc=100.0%
+Iter  600 | loss=0.0106 fitness=-0.0106 acc=100.0%
+Iter  700 | loss=0.0080 fitness=-0.0080 acc=100.0%
+Iter  800 | loss=0.0063 fitness=-0.0063 acc=100.0%
+Iter  900 | loss=0.0050 fitness=-0.0050 acc=100.0%
+Iter 1000 | loss=0.0040 fitness=-0.0040 acc=100.0%
+Iter 1100 | loss=0.0033 fitness=-0.0033 acc=100.0%
+Iter 1200 | loss=0.0028 fitness=-0.0028 acc=100.0%
+Iter 1300 | loss=0.0025 fitness=-0.0025 acc=100.0%
+Iter 1400 | loss=0.0021 fitness=-0.0021 acc=100.0%
+Iter 1500 | loss=0.0018 fitness=-0.0018 acc=100.0%
+Iter 1600 | loss=0.0017 fitness=-0.0017 acc=100.0%
+Iter 1700 | loss=0.0014 fitness=-0.0014 acc=100.0%
+Iter 1800 | loss=0.0013 fitness=-0.0013 acc=100.0%
+Iter 1900 | loss=0.0012 fitness=-0.0012 acc=100.0%
+Iter 1999 | loss=0.0010 fitness=-0.0010 acc=100.0%
+BPTT time: 5.4s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=97.4%  mean_acc=99.9%  fit=+1.0000  time=104s
+        ga: best_acc=98.6%  mean_acc=80.8%  fit=+0.9972  time=113s
+    ga_oja: best_acc=99.0%  mean_acc=83.6%  fit=+1.0000  time=296s
+      bptt: acc=100.0%  fit=-0.0010  time=5s
+  Saved results/nback2_neurons32_seed456/es/
+  Saved results/nback2_neurons32_seed456/ga/
+  Saved results/nback2_neurons32_seed456/ga_oja/
+  Saved results/nback2_neurons32_seed456/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback2_neurons32_seed456/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    2.5548 | 17.6% |     3.1% |       —
+       | W_rec |    7.0113 | 48.4% |     2.2% |       7
+       | W_out |    4.9120 | 33.9% |     0.0% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    1.4329 | 25.1% |     1.9% |       —
+       | W_rec |    2.9546 | 51.7% |     4.2% |      16
+       | W_out |    1.3321 | 23.3% |     1.9% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    3.2663 | 24.9% |     1.9% |       —
+       | W_rec |    6.7552 | 51.5% |     4.7% |      16
+       | W_out |    3.1059 | 23.7% |     3.1% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    2.5724 | 21.9% |     3.1% |       —
+       | W_rec |    6.6650 | 56.8% |     4.0% |      16
+       | W_out |    2.5012 | 21.3% |     3.8% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     3.1% |       —
+       | W_rec |    3.1913 | 100.0% |     3.9% |      17
+       | W_out |    0.0000 |  0.0% |     3.8% |       —
+--------------------------------------------------------------------
+  Saved results/nback2_neurons32_seed456/figures/fig1_weight_change_fractions.png
+  Saved results/nback2_neurons32_seed456/figures/fig2_delta_distributions.png
+  Saved results/nback2_neurons32_seed456/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback2_neurons32_seed456/figures/fig4_final_weights.png
+  Saved results/nback2_neurons32_seed456/figures/fig5_sparsity.png
+[analyze] done.
+[6/36] DONE
+
+[7/36] neurons=32 nback=3 seed=42
+------------------------------------------------------------
+============================================================
+EXPERIMENT: NBACK | 32 neurons
+Method: all + BPTT
+Saving → results/nback3_neurons32_seed42/
+============================================================
+  3-back recall, seq_len=20, 5 symbols
+
+------------------------------------------------------------
+Training ES (OpenAI Evolution Strategy)...
+------------------------------------------------------------
+ES (direct weights): 32 neurons, 1344 params
+Task: nback | pop=128, gens=500
+Gen    0 | mean=21.9% best=27.4%
+Gen   25 | mean=40.3% best=47.1%
+Gen   50 | mean=53.3% best=59.4%
+Gen   75 | mean=63.6% best=72.1%
+Gen  100 | mean=73.6% best=80.9%
+Gen  125 | mean=77.2% best=83.5%
+Gen  150 | mean=82.6% best=87.4%
+Gen  175 | mean=89.4% best=95.0%
+Gen  200 | mean=92.4% best=96.8%
+Gen  225 | mean=95.4% best=98.8%
+Gen  250 | mean=97.3% best=100.0%
+Gen  275 | mean=98.3% best=100.0%
+Gen  300 | mean=98.9% best=100.0%
+Gen  325 | mean=99.2% best=100.0%
+Gen  350 | mean=99.4% best=100.0%
+Gen  375 | mean=99.5% best=100.0%
+Gen  400 | mean=99.6% best=100.0%
+Gen  425 | mean=99.6% best=100.0%
+Gen  450 | mean=99.6% best=100.0%
+Gen  475 | mean=99.8% best=100.0%
+Gen  499 | mean=99.8% best=100.0%
+ES time: 104.7s
+
+------------------------------------------------------------
+Training GA (Genetic Algorithm)...
+------------------------------------------------------------
+GA: 32 neurons, 1344 weight params + 32 sigma params
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=neuron-level, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], fitness=shared
+Gen    0 | mean=20.2% best=34.4% σ̄=0.0500
+Gen   25 | mean=47.5% best=65.0% σ̄=0.0585
+Gen   50 | mean=58.2% best=79.7% σ̄=0.0618
+Gen   75 | mean=60.3% best=82.1% σ̄=0.0665
+Gen  100 | mean=63.5% best=82.1% σ̄=0.0727
+Gen  125 | mean=64.2% best=84.4% σ̄=0.0778
+Gen  150 | mean=64.3% best=84.7% σ̄=0.0813
+Gen  175 | mean=65.0% best=86.8% σ̄=0.0830
+Gen  200 | mean=66.5% best=86.8% σ̄=0.0860
+Gen  225 | mean=67.4% best=86.8% σ̄=0.0872
+Gen  250 | mean=70.0% best=87.4% σ̄=0.0925
+Gen  275 | mean=69.9% best=87.4% σ̄=0.0912
+Gen  300 | mean=71.8% best=87.9% σ̄=0.0897
+Gen  325 | mean=72.9% best=90.3% σ̄=0.0951
+Gen  350 | mean=70.2% best=90.3% σ̄=0.0947
+Gen  375 | mean=70.7% best=90.3% σ̄=0.0945
+Gen  400 | mean=71.4% best=90.3% σ̄=0.0943
+Gen  425 | mean=69.9% best=90.3% σ̄=0.0985
+Gen  450 | mean=72.0% best=90.3% σ̄=0.1033
+Gen  475 | mean=73.1% best=90.3% σ̄=0.1072
+Gen  499 | mean=73.6% best=90.3% σ̄=0.1043
+GA time: 116.3s
+
+------------------------------------------------------------
+Training GA-Oja (Genetic Algorithm + Oja's Rule)...
+------------------------------------------------------------
+GA-Oja: 32 neurons, 1346 params (1344 weights + 2 Oja) + 32 sigma genes
+Task: nback | pop=128, gens=500
+elite=4, tournament_k=5, crossover=blend, mut_std=0.3, sigma0=0.05, tau=0.1250, sigma_cap=[0.005,0.15], eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]
+Gen    0 | mean=20.4% best=30.6% σ̄=0.0500 η=0.01000 w_max=2.00
+Gen   25 | mean=46.8% best=62.6% σ̄=0.0580 η=0.00742 w_max=6.32
+Gen   50 | mean=55.1% best=75.3% σ̄=0.0626 η=0.00535 w_max=1.44
+Gen   75 | mean=62.8% best=82.1% σ̄=0.0644 η=0.00322 w_max=0.52
+Gen  100 | mean=65.6% best=88.8% σ̄=0.0714 η=0.00643 w_max=0.27
+Gen  125 | mean=68.9% best=89.4% σ̄=0.0772 η=0.00531 w_max=0.26
+Gen  150 | mean=68.0% best=91.8% σ̄=0.0828 η=0.00928 w_max=0.30
+Gen  175 | mean=68.5% best=93.2% σ̄=0.0807 η=0.00359 w_max=0.26
+Gen  200 | mean=69.9% best=95.3% σ̄=0.0839 η=0.00310 w_max=0.24
+Gen  225 | mean=69.8% best=95.3% σ̄=0.0829 η=0.00310 w_max=0.24
+Gen  250 | mean=70.3% best=95.3% σ̄=0.0836 η=0.00310 w_max=0.24
+Gen  275 | mean=71.9% best=95.3% σ̄=0.0838 η=0.00310 w_max=0.24
+Gen  300 | mean=70.2% best=95.3% σ̄=0.0867 η=0.00310 w_max=0.24
+Gen  325 | mean=72.2% best=96.5% σ̄=0.0852 η=0.00369 w_max=0.25
+Gen  350 | mean=71.9% best=96.5% σ̄=0.0860 η=0.00369 w_max=0.25
+Gen  375 | mean=73.8% best=96.8% σ̄=0.0884 η=0.00194 w_max=0.24
+Gen  400 | mean=75.7% best=96.8% σ̄=0.0877 η=0.00194 w_max=0.24
+Gen  425 | mean=75.9% best=97.1% σ̄=0.0899 η=0.00155 w_max=0.24
+Gen  450 | mean=77.6% best=97.4% σ̄=0.0903 η=0.00106 w_max=0.21
+Gen  475 | mean=76.8% best=97.9% σ̄=0.0882 η=0.00114 w_max=0.23
+Gen  499 | mean=77.4% best=97.9% σ̄=0.0854 η=0.00114 w_max=0.23
+
+GA-Oja final: best_acc=95.6%  η=0.00114  w_max=0.23
+GA-Oja time: 323.1s
+
+------------------------------------------------------------
+Training BPTT (rate-coded)...
+------------------------------------------------------------
+BPTT-Rate: 32 neurons, 1376 params
+Task: nback | iters=2000, lr=0.001
+Iter    0 | loss=1.6119 fitness=-1.6119 acc=19.9%
+Iter  100 | loss=0.8159 fitness=-0.8159 acc=76.2%
+Iter  200 | loss=0.2499 fitness=-0.2499 acc=98.5%
+Iter  300 | loss=0.0991 fitness=-0.0991 acc=100.0%
+Iter  400 | loss=0.0561 fitness=-0.0561 acc=100.0%
+Iter  500 | loss=0.0385 fitness=-0.0385 acc=100.0%
+Iter  600 | loss=0.0266 fitness=-0.0266 acc=100.0%
+Iter  700 | loss=0.0190 fitness=-0.0190 acc=100.0%
+Iter  800 | loss=0.0149 fitness=-0.0149 acc=100.0%
+Iter  900 | loss=0.0120 fitness=-0.0120 acc=100.0%
+Iter 1000 | loss=0.0094 fitness=-0.0094 acc=100.0%
+Iter 1100 | loss=0.0074 fitness=-0.0074 acc=100.0%
+Iter 1200 | loss=0.0062 fitness=-0.0062 acc=100.0%
+Iter 1300 | loss=0.0051 fitness=-0.0051 acc=100.0%
+Iter 1400 | loss=0.0043 fitness=-0.0043 acc=100.0%
+Iter 1500 | loss=0.0037 fitness=-0.0037 acc=100.0%
+Iter 1600 | loss=0.0031 fitness=-0.0031 acc=100.0%
+Iter 1700 | loss=0.0027 fitness=-0.0027 acc=100.0%
+Iter 1800 | loss=0.0025 fitness=-0.0025 acc=100.0%
+Iter 1900 | loss=0.0022 fitness=-0.0022 acc=100.0%
+Iter 1999 | loss=0.0018 fitness=-0.0018 acc=100.0%
+BPTT time: 5.6s
+
+
+============================================================
+RESULTS
+============================================================
+        es: best_acc=97.4%  mean_acc=99.8%  fit=+1.0000  time=105s
+        ga: best_acc=86.6%  mean_acc=73.6%  fit=+0.9029  time=116s
+    ga_oja: best_acc=95.6%  mean_acc=77.4%  fit=+0.9794  time=323s
+      bptt: acc=100.0%  fit=-0.0018  time=6s
+  Saved results/nback3_neurons32_seed42/es/
+  Saved results/nback3_neurons32_seed42/ga/
+  Saved results/nback3_neurons32_seed42/ga_oja/
+  Saved results/nback3_neurons32_seed42/bptt/
+
+[analyze] methods: ['BPTT', 'ES', 'GA', 'GA-Oja', 'Oja Δ']
+[analyze] figures → results/nback3_neurons32_seed42/figures/
+
+====================================================================
+CONNECTIVITY ANALYSIS SUMMARY
+====================================================================
+Method | Layer |  ||ΔW||_F |  Frac% | Sparsity | EffRank
+--------------------------------------------------------------------
+  BPTT |  W_in |    1.9138 | 13.1% |     3.1% |       —
+       | W_rec |    6.7988 | 46.5% |     2.1% |       9
+       | W_out |    5.9072 | 40.4% |     0.6% |       —
+--------------------------------------------------------------------
+    ES |  W_in |    1.4620 | 23.3% |     3.1% |       —
+       | W_rec |    3.3815 | 53.8% |     3.6% |      16
+       | W_out |    1.4399 | 22.9% |     1.2% |       —
+--------------------------------------------------------------------
+    GA |  W_in |    4.9915 | 27.2% |     0.6% |       —
+       | W_rec |    9.4386 | 51.4% |     2.9% |      16
+       | W_out |    3.9199 | 21.4% |     2.5% |       —
+--------------------------------------------------------------------
+GA-Oja |  W_in |    3.8507 | 21.9% |     4.4% |       —
+       | W_rec |   10.2367 | 58.1% |     3.3% |      17
+       | W_out |    3.5268 | 20.0% |     1.9% |       —
+--------------------------------------------------------------------
+ Oja Δ |  W_in |    0.0000 |  0.0% |     4.4% |       —
+       | W_rec |    5.4804 | 100.0% |     3.3% |      17
+       | W_out |    0.0000 |  0.0% |     1.9% |       —
+--------------------------------------------------------------------
+  Saved results/nback3_neurons32_seed42/figures/fig1_weight_change_fractions.png
+  Saved results/nback3_neurons32_seed42/figures/fig2_delta_distributions.png
+  Saved results/nback3_neurons32_seed42/figures/fig3_delta_rec_heatmaps.png
+  Saved results/nback3_neurons32_seed42/figures/fig4_final_weights.png
+  Saved results/nback3_neurons32_seed42/figures/fig5_sparsity.png
+[analyze] done.
+[7/36] DONE
+
+[8/36] neurons=32 nback=3 seed=123
+------------------------------------------------------------

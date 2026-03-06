@@ -18,6 +18,9 @@ def make_task(conf):
             trial_length=conf.trial_length,
             response_length=conf.response_length,
         )
+    if conf.task == "robot":
+        from envs.robot_arm import RobotArmTask
+        return RobotArmTask(seq_length=conf.seq_length)
     return WorkingMemoryTask(
         cue_duration=conf.cue_duration,
         delay_duration=conf.delay_duration,

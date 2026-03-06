@@ -39,6 +39,9 @@ def make_task_torch(conf):
             trial_length=conf.trial_length,
             response_length=conf.response_length,
         )
+    if conf.task == "robot":
+        from envs.robot_arm import RobotArmTaskTorch
+        return RobotArmTaskTorch(seq_length=conf.seq_length)
     return WorkingMemoryTaskTorch(
         cue_duration=conf.cue_duration,
         delay_duration=conf.delay_duration,
@@ -65,8 +68,13 @@ def train_bptt(conf, use_lif=False) -> dict | None:
     N = conf.n_neurons
     task_torch = make_task_torch(conf)
 
-    # 5-class softmax readout for nback and evidence; other tasks use scalar
-    action_dim = 5 if conf.task in ("nback", "evidence") else conf.action_dim
+    # action_dim: 5 for classification tasks, 2 for robot regression, else conf default
+    if conf.task in ("nback", "evidence"):
+        action_dim = 5
+    elif conf.task == "robot":
+        action_dim = 2
+    else:
+        action_dim = conf.action_dim
 
     if use_lif:
         from models.lif_rsnn import LIF_RSNN_Torch

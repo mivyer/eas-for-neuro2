@@ -12,7 +12,7 @@ class Config:
     action_dim: int = 5    # 5-class softmax output
 
     # Task
-    task: str = "nback"         # "nback" | "wm" | "evidence"
+    task: str = "nback"         # "nback" | "wm" | "evidence" | "robot"
     n_back: int = 2
     seq_length: int = 20
 

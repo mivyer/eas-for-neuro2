@@ -439,6 +439,9 @@ def train_ga(conf) -> dict:
             trial_length=conf.trial_length,
             response_length=conf.response_length,
         )
+    elif task_name == 'robot':
+        from envs.robot_arm import RobotArmTask
+        task = RobotArmTask(seq_length=conf.seq_length)
     else:
         from envs.working_memory import WorkingMemoryTask
         task = WorkingMemoryTask(

@@ -139,9 +139,13 @@ class GeneticAlgorithmOja:
             dW    = eta * (np.outer(h, h) - (h ** 2)[:, None] * W_rec)
             W_rec = np.clip(W_rec + dW, -w_max, w_max)
 
-        mask = targets >= 0
-        acc  = float((np.argmax(outputs[mask], axis=-1) == targets[mask]).mean()) \
-               if mask.any() else 0.0
+        if targets.ndim == 2:
+            # Regression task (e.g. robot arm): fitness = -MSE
+            acc = -float(np.mean((outputs - targets) ** 2))
+        else:
+            mask = targets >= 0
+            acc  = float((np.argmax(outputs[mask], axis=-1) == targets[mask]).mean()) \
+                   if mask.any() else 0.0
         return acc, W_rec
 
     # ------------------------------------------------------------------
@@ -176,7 +180,9 @@ class GeneticAlgorithmOja:
                                          inputs, targets)
             accs.append(acc)
         mean_acc = float(np.mean(accs))
-        return {'fitness': mean_acc, 'accuracy': mean_acc}
+        # For regression tasks, accs = -MSE (negative). Convert to exp(-MSE) for display.
+        display_acc = float(np.exp(mean_acc)) if mean_acc < 0 else mean_acc
+        return {'fitness': mean_acc, 'accuracy': display_acc}
 
     def evaluate(self, population, task):
         return [self._evaluate_one(g, task) for g in population]
@@ -429,7 +435,9 @@ class GeneticAlgorithmOja:
             acc, W_rec_post = self._run_oja_trial(
                 W_rec_geno, W_in_f, W_out_f, eta_f, wmax_f, inp, tgt)
             final_accs.append(acc)
-        best_accuracy = float(np.mean(final_accs))
+        mean_final = float(np.mean(final_accs))
+        # For regression tasks, acc = -MSE (negative); convert to exp(-MSE) for display
+        best_accuracy = float(np.exp(mean_final)) if mean_final < 0 else mean_final
 
         return {
             # Evolutionary ΔW: W_rec_final - W_rec_init  (what evolution changed)
@@ -472,6 +480,9 @@ def train_ga_oja(conf) -> dict:
             trial_length=conf.trial_length,
             response_length=conf.response_length,
         )
+    elif task_name == 'robot':
+        from envs.robot_arm import RobotArmTask
+        task = RobotArmTask(seq_length=conf.seq_length)
     else:
         from envs.working_memory import WorkingMemoryTask
         task = WorkingMemoryTask(
