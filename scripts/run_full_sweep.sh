@@ -15,15 +15,18 @@ set -e
 EA_GENS=500
 BPTT_ITERS=2000
 SEEDS="42 123 456"
-NBACKS="1 2 3 4"
+# NBACKS="1 2 3 4"
 NEURONS="32 64 128"
 
+
+#do for nb in $NBACKS; 
 TOTAL=0
-for n in $NEURONS; do for nb in $NBACKS; do for s in $SEEDS; do TOTAL=$((TOTAL+1)); done; done; done
+for n in $NEURONS; do for s in $SEEDS; do TOTAL=$((TOTAL+1)); done; done
 echo "============================================================"
 echo "FULL THESIS SWEEP: $TOTAL experiments"
 echo "Neurons: $NEURONS"
-echo "N-back: $NBACKS"
+echo "Task: robot"
+# echo "N-back: $NBACKS"
 echo "Seeds: $SEEDS"
 echo "EA gens: $EA_GENS | BPTT iters: $BPTT_ITERS"
 echo "============================================================"
@@ -35,16 +38,16 @@ for NEUR in $NEURONS; do
     echo "=== STARTING $NEUR NEURON BLOCK ==="
     echo "============================================================"
     
-    for NB in $NBACKS; do
+    # for NB in $NBACKS; do
         for SEED in $SEEDS; do
             COUNT=$((COUNT+1))
             echo ""
-            echo "[$COUNT/$TOTAL] neurons=$NEUR nback=$NB seed=$SEED"
+            echo "[$COUNT/$TOTAL] neurons=$NEUR seed=$SEED"
             echo "------------------------------------------------------------"
             
             python3 scripts/run_experiment.py \
                 --method all \
-                --n-back $NB \
+                --task robot \
                 --neurons $NEUR \
                 --ea-gens $EA_GENS \
                 --bptt-iters $BPTT_ITERS \
