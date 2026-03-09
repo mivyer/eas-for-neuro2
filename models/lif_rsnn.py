@@ -186,6 +186,7 @@ if TORCH_AVAILABLE:
             self.action_dim = action_dim
             self.beta = beta
             self.threshold = threshold
+            # Wider temperature = more neurons get gradient signal
             self.temperature = temperature
             self.refractory_steps = refractory_steps
             self.dale = dale
@@ -202,8 +203,10 @@ if TORCH_AVAILABLE:
             # Learnable raw weights (sign enforced via dale_mask)
             scale = np.sqrt(2.0 / n_neurons)
             self.W_rec_raw = nn.Parameter(scale * torch.randn(n_neurons, n_neurons))
-            self.W_in = nn.Parameter(scale * torch.randn(n_neurons, obs_dim))
-            self.W_out = nn.Parameter(scale * torch.randn(action_dim, n_neurons))
+            self.W_in = nn.Parameter(2.0 * scale * torch.randn(n_neurons, obs_dim))  # stronger input
+            # Small init: membrane potentials are unbounded, so logits need small scale
+            self.W_out = nn.Parameter(0.01 * torch.randn(action_dim, n_neurons))
+
 
             # Initial hidden state
             self.register_buffer('v0', torch.zeros(n_neurons))
@@ -264,7 +267,7 @@ if TORCH_AVAILABLE:
                 # Set refractory
                 refrac = refrac + s * self.refractory_steps
 
-                # Output from membrane potential
+                # Output: raw logits from membrane readout (softmax/CE applied externally)
                 y = v @ self.W_out.T  # (B, action_dim)
 
                 outputs.append(y)

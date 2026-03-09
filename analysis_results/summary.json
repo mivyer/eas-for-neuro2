@@ -1,8 +1,0 @@
-{
-  "timestamp": "2026-02-23T14:58:27.425388",
-  "n_neurons": 256,
-  "ea_best_fitness": 1.0,
-  "ea_final_accuracy": 1.0,
-  "bptt_final_fitness": -3.033400025742594e-05,
-  "bptt_final_accuracy": 1.0
-}

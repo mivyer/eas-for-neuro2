@@ -1,21 +1,47 @@
 # trainers/train_bptt.py
-"""BPTT training with surrogate gradients (rate-coded RNN for now)."""
+"""
+BPTT training — supports both rate-coded RNN and LIF spiking neurons.
+
+Rate-coded: standard tanh RNN, exact gradients, ~80% on 1-back
+LIF spiking: surrogate gradient (fast sigmoid), approximate gradients, expect ~60-75%
+
+Usage via run_experiment.py:
+    --method bptt          # rate-coded (default)
+    --method bptt_lif      # LIF with surrogate gradients
+"""
 
 import numpy as np
 
 try:
     import torch
-    from models.bptt_rnn import RNNPolicy, count_parameters
-    from envs.letter_nback import LetterNBackTaskTorch
-    from envs.working_memory import WorkingMemoryTaskTorch
+    import torch.nn as nn
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
+
+if TORCH_AVAILABLE:
+    from envs.letter_nback import LetterNBackTaskTorch
+    from envs.working_memory import WorkingMemoryTaskTorch
+
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def make_task_torch(conf):
     if conf.task == "nback":
         return LetterNBackTaskTorch(n_back=conf.n_back, seq_length=conf.seq_length)
+    if conf.task == "evidence":
+        from envs.evidence_accumulation import EvidenceAccumulationTaskTorch
+        return EvidenceAccumulationTaskTorch(
+            evidence_strength=conf.evidence_strength,
+            noise_std=conf.noise_std,
+            trial_length=conf.trial_length,
+            response_length=conf.response_length,
+        )
+    if conf.task == "robot":
+        from envs.robot_arm import RobotArmTaskTorch
+        return RobotArmTaskTorch(seq_length=conf.seq_length)
     return WorkingMemoryTaskTorch(
         cue_duration=conf.cue_duration,
         delay_duration=conf.delay_duration,
@@ -23,7 +49,15 @@ def make_task_torch(conf):
     )
 
 
-def train_bptt(conf) -> dict | None:
+def train_bptt(conf, use_lif=False) -> dict | None:
+    """
+    Train with BPTT.
+
+    Args:
+        conf: Config dataclass
+        use_lif: if True, use LIF_RSNN_Torch with surrogate gradients
+                 if False, use rate-coded RNNPolicy (from bptt_rnn.py)
+    """
     if not TORCH_AVAILABLE:
         print("PyTorch not available, skipping BPTT")
         return None
@@ -32,25 +66,74 @@ def train_bptt(conf) -> dict | None:
     np.random.seed(conf.seed)
 
     N = conf.n_neurons
-    model = RNNPolicy(N, conf.obs_dim, conf.action_dim).to("cpu")
     task_torch = make_task_torch(conf)
 
+    # action_dim: 5 for classification tasks, 2 for robot regression, else conf default
+    if conf.task in ("nback", "evidence"):
+        action_dim = 5
+    elif conf.task == "robot":
+        action_dim = 2
+    else:
+        action_dim = conf.action_dim
+
+    if use_lif:
+        from models.lif_rsnn import LIF_RSNN_Torch
+        model = LIF_RSNN_Torch(
+            n_neurons=N,
+            obs_dim=conf.obs_dim,
+            action_dim=action_dim,
+            beta=conf.lif_beta,
+            threshold=conf.lif_threshold,
+            temperature=2.0,  # wider surrogate → more neurons get gradient
+            refractory_steps=conf.lif_refractory,
+            ei_ratio=conf.ei_ratio,
+            dale=False,
+        ).to("cpu")
+        label = "BPTT-LIF"
+        lr = conf.bptt_lr * 3  # LIF needs higher LR (surrogate gradients are weaker)
+    else:
+        from models.bptt_rnn import RNNPolicy
+        model = RNNPolicy(N, conf.obs_dim, action_dim).to("cpu")
+        label = "BPTT-Rate"
+        lr = conf.bptt_lr
+
+    # Extract initial weights for analysis
     with torch.no_grad():
-        W_rec_init = model.W_rec.cpu().numpy().copy()
+        W_rec = model.W_rec
+        W_rec_init = W_rec.cpu().numpy().copy()
         W_in_init = model.W_in.cpu().numpy().copy()
         W_out_init = model.W_out.cpu().numpy().copy()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=conf.bptt_lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     history = {'loss': [], 'fitness': [], 'accuracy': [], 'sparsity_rec': []}
-    snapshots = {}
 
-    print(f"BPTT: {N} neurons, {count_parameters(model)} params")
-    print(f"Task: {conf.task} | iters={conf.bptt_iterations}, lr={conf.bptt_lr}")
+    print(f"{label}: {N} neurons, {count_parameters(model)} params")
+    if use_lif:
+        print(f"  LIF: beta={conf.lif_beta}, threshold={conf.lif_threshold}, "
+              f"temp=2.0, lr={lr:.4f}")
+        # print(f"  E/I={conf.ei_ratio:.0%}/{1-conf.ei_ratio:.0%}, Dale's law")  # disabled
+    print(f"Task: {conf.task} | iters={conf.bptt_iterations}, lr={lr}")
 
     for it in range(conf.bptt_iterations):
         model.train()
         inputs, targets = task_torch.get_batch(conf.bptt_batch_size)
-        outputs = model(inputs)
+        # inputs: (batch, T), targets: (batch, T)
+
+        if use_lif:
+            # LIF expects (T, batch, obs_dim)
+            if inputs.dim() == 2:
+                inp_lif = inputs.permute(1, 0).unsqueeze(-1)  # (T, B, 1)
+            else:
+                inp_lif = inputs.permute(1, 0, 2)  # (T, B, obs_dim)
+            model_out = model(inp_lif)  # returns (outputs, spikes)
+            outputs_raw = model_out[0]  # (T, B, action_dim)
+            if action_dim == 1:
+                outputs = outputs_raw.squeeze(-1).permute(1, 0)  # (B, T)
+            else:
+                outputs = outputs_raw.permute(1, 0, 2)  # (B, T, action_dim)
+        else:
+            outputs = model(inputs)  # (B, T) or (B, T, action_dim)
+
         loss = task_torch.compute_loss(outputs, targets)
 
         optimizer.zero_grad()
@@ -61,7 +144,8 @@ def train_bptt(conf) -> dict | None:
         with torch.no_grad():
             acc = task_torch.compute_accuracy(outputs, targets)
             fit = task_torch.compute_fitness(outputs, targets)
-            sp = float((model.W_rec.abs() < conf.sparsity_threshold).float().mean())
+            W_rec_cur = model.W_rec
+            sp = float((W_rec_cur.abs() < conf.sparsity_threshold).float().mean())
 
         history['loss'].append(float(loss.item()))
         history['fitness'].append(float(fit))
@@ -82,5 +166,5 @@ def train_bptt(conf) -> dict | None:
         'W_rec_init': W_rec_init, 'W_in_init': W_in_init, 'W_out_init': W_out_init,
         'W_rec_final': W_rec_final, 'W_in_final': W_in_final, 'W_out_final': W_out_final,
         'history': history,
-        'snapshots': snapshots,
+        'label': label,
     }

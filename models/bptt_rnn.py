@@ -60,20 +60,20 @@ class RNNPolicy(nn.Module):
         outputs = []
         for t in range(seq_len):
             obs = inputs[:, t, :]  # (batch, obs_dim)
-            
+
             # RNN dynamics
             h = torch.tanh(h @ self.W_rec.T + obs @ self.W_in.T)
-            
-            # Readout
-            action = torch.tanh(h @ self.W_out.T)  # (batch, action_dim)
+
+            # Readout — raw logits (no activation; softmax/CE applied externally)
+            action = h @ self.W_out.T  # (batch, action_dim)
             outputs.append(action)
-        
+
         outputs = torch.stack(outputs, dim=1)  # (batch, seq_len, action_dim)
-        
-        # Squeeze if action_dim == 1
+
+        # Squeeze only for single-output regression tasks
         if self.action_dim == 1:
             outputs = outputs.squeeze(-1)  # (batch, seq_len)
-        
+
         return outputs
     
     def get_connectivity_stats(self) -> dict:

@@ -8,13 +8,19 @@ from dataclasses import dataclass, asdict
 class Config:
     # Architecture
     n_neurons: int = 32
-    obs_dim: int = 1
-    action_dim: int = 1
+    obs_dim: int = 5       # one-hot over 5 symbols
+    action_dim: int = 5    # 5-class softmax output
 
     # Task
-    task: str = "nback"         # "nback" or "wm"
+    task: str = "nback"         # "nback" | "wm" | "evidence" | "robot"
     n_back: int = 2
     seq_length: int = 20
+
+    # Evidence accumulation task params (used when task="evidence")
+    evidence_strength: float = 0.1   # bias on correct channel each timestep
+    noise_std: float = 0.5           # Gaussian noise std on all channels
+    trial_length: int = 50           # total timesteps per trial
+    response_length: int = 5         # response window (last N steps)
 
     # Working memory params (used when task="wm")
     cue_duration: int = 5
@@ -31,6 +37,7 @@ class Config:
     # GA (Genetic Algorithm)
     ga_mutation_rate: float = 0.05
     ga_mutation_std: float = 0.3
+    ea_patience: int = 999_999     # early-stop patience (default = off; use --patience N to enable)
 
     # BPTT
     bptt_iterations: int = 1000
@@ -38,8 +45,8 @@ class Config:
     bptt_lr: float = 1e-3
 
     # LIF neuron params
-    lif_beta: float = 0.85
-    lif_threshold: float = 1.0
+    lif_beta: float = 0.9        # slower leak → voltage accumulates
+    lif_threshold: float = 0.5   # lower threshold → neurons actually fire
     lif_refractory: int = 2
     ei_ratio: float = 0.8
 
