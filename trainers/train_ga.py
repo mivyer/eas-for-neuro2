@@ -305,12 +305,23 @@ class GeneticAlgorithm:
             'accuracy':     [],   # pop mean accuracy per gen
             'best_fitness': [],   # best-so-far raw fitness
             'mean_sigma':   [],   # mean per-neuron mutation rate across pop
+            'mutation_std': [],   # global mutation amplitude (1/5-rule adapted)
         }
 
         best_gene       = None
         best_fitness    = -np.inf
         best_accuracy   = 0.0   # all-time best, updated when best_gene changes
         gens_no_improve = 0
+
+        # 1/5-success-rule on global mutation_std (Rechenberg 1973).
+        # When the population finds improvements > 1-in-5 gens → bolder mutations;
+        # when stuck < 1-in-5 → finer mutations.  Analogous to ES sigma adaptation.
+        _SUCCESS_WIN  = 20
+        _MUT_UP       = 1.05   # grow mutation_std when improving frequently
+        _MUT_DN       = 0.97   # shrink when stuck
+        _MUT_MIN      = self.mutation_std * 0.25
+        _MUT_MAX      = self.mutation_std * 4.0
+        _success_hist = []
 
         snapshot_gens = sorted(set(
             [0, 25, 50, 100, 150, 200, 250] + [n_generations - 1]
@@ -332,7 +343,8 @@ class GeneticAlgorithm:
             mean_sigma   = float(np.mean([g[self.gene_length:] for g in population]))
 
             idx_best = int(np.argmax(raw_fitnesses))
-            if raw_fitnesses[idx_best] > best_fitness:
+            improved = raw_fitnesses[idx_best] > best_fitness
+            if improved:
                 best_fitness    = raw_fitnesses[idx_best]
                 best_gene       = population[idx_best].copy()
                 best_accuracy   = accuracies[idx_best]
@@ -340,10 +352,22 @@ class GeneticAlgorithm:
             else:
                 gens_no_improve += 1
 
+            # 1/5-success-rule: adapt global mutation_std each generation
+            _success_hist.append(1 if improved else 0)
+            if len(_success_hist) > _SUCCESS_WIN:
+                _success_hist.pop(0)
+            if len(_success_hist) == _SUCCESS_WIN:
+                rate = sum(_success_hist) / _SUCCESS_WIN
+                if rate > 0.2:
+                    self.mutation_std = min(self.mutation_std * _MUT_UP, _MUT_MAX)
+                elif rate < 0.2:
+                    self.mutation_std = max(self.mutation_std * _MUT_DN, _MUT_MIN)
+
             history['fitness'].append(gen_mean_fit)
             history['accuracy'].append(gen_mean_acc)
             history['best_fitness'].append(float(best_fitness))
             history['mean_sigma'].append(mean_sigma)
+            history['mutation_std'].append(float(self.mutation_std))
 
             # 4. Snapshot
             if gen in snapshot_gens:
@@ -354,7 +378,7 @@ class GeneticAlgorithm:
             # 5. Print
             if gen % print_every == 0 or gen == n_generations - 1:
                 print(f"Gen {gen:4d} | mean={gen_mean_acc:.1%} "
-                      f"best={best_accuracy:.1%} σ̄={mean_sigma:.4f}")
+                      f"best={best_accuracy:.1%} σ̄={mean_sigma:.4f} mut_std={self.mutation_std:.4f}")
 
             # Early stopping
             if gens_no_improve >= patience:
@@ -450,25 +474,51 @@ def train_ga(conf) -> dict:
             response_duration=conf.response_duration,
         )
 
+    N = conf.n_neurons
+    n_params = N * N + conf.obs_dim * N + conf.action_dim * N
+
+    # ── Dimension-aware scaling ───────────────────────────────────────────
+    # mutation_std: scale with sqrt(baseline_N / N) so each mutation's
+    # amplitude stays proportional to the weight initialisation scale
+    # sqrt(2/N).  Without this, mut_std=0.3 is 2.4× the init scale at 128n
+    # vs 1.2× at 32n — mutations are twice as disruptive per weight, and
+    # the total disruption per individual is 11× larger (883 vs 80 weights).
+    # Scaling gives ~equal disruption at all network sizes.
+    #   N=32:  mut_std = 0.30  (unchanged, baseline)
+    #   N=64:  mut_std = 0.21
+    #   N=128: mut_std = 0.15
+    baseline_N = 32
+    mut_std_raw = getattr(conf, 'ga_mutation_std', 0.3)
+    mutation_std = mut_std_raw * np.sqrt(baseline_N / N)
+
+    # sigma0 (per-neuron mutation rate gene initial value): left unscaled —
+    # the self-adaptive mechanism and the 1/5 rule on mut_std handle this.
+    sigma0 = getattr(conf, 'ga_mutation_rate', 0.05)
+
+    pop_size = conf.ea_pop_size
+    if getattr(conf, 'ea_auto_pop', False):
+        pop_size = max(conf.ea_pop_size, int(4 * np.sqrt(n_params)))
+    # ─────────────────────────────────────────────────────────────────────
+
     ga = GeneticAlgorithm(
-        n_neurons=conf.n_neurons,
+        n_neurons=N,
         obs_dim=conf.obs_dim,
         action_dim=conf.action_dim,
-        pop_size=conf.ea_pop_size,
-        n_elite=max(2, conf.ea_pop_size // 32),  # ~3% elitism
+        pop_size=pop_size,
+        n_elite=max(2, pop_size // 32),  # ~3% elitism
         tournament_k=5,
         crossover_rate=0.7,
-        mutation_rate=getattr(conf, 'ga_mutation_rate', 0.05),
-        mutation_std=getattr(conf, 'ga_mutation_std', 0.3),
+        mutation_rate=sigma0,
+        mutation_std=mutation_std,
         n_eval_trials=conf.ea_n_eval_trials,
         seed=conf.seed,
     )
 
-    print(f"GA: {conf.n_neurons} neurons, {ga.gene_length} weight params + {conf.n_neurons} sigma params")
-    print(f"Task: {task_name} | pop={conf.ea_pop_size}, gens={conf.ea_generations}")
+    print(f"GA: {N} neurons, {ga.gene_length} weight params + {N} sigma params")
+    print(f"Task: {task_name} | pop={pop_size}, gens={conf.ea_generations}")
     print(f"elite={ga.n_elite}, tournament_k={ga.tournament_k}, "
-          f"crossover=neuron-level, mut_std={ga.mutation_std}, "
-          f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}, sigma_cap=[0.005,0.15], fitness=shared")
+          f"crossover=neuron-level, mut_std={ga.mutation_std:.4f} (raw={mut_std_raw}, N-scaled), "
+          f"sigma0={ga.mutation_rate:.4f}, tau={ga.tau:.4f}, sigma_cap=[0.005,0.15], fitness=shared")
 
     result = ga.evolve(task, n_generations=conf.ea_generations,
                        print_every=conf.print_every,

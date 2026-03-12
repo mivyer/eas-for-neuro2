@@ -45,6 +45,7 @@ def _git_hash() -> str:
 
 def _save_config(conf: Config, exp_dir: str) -> None:
     """Write config.json with full Config + timestamp + git commit hash."""
+    os.makedirs(exp_dir, exist_ok=True)
     meta = conf.to_dict()
     meta['timestamp'] = datetime.datetime.now().isoformat()
     meta['git_commit'] = _git_hash()
