@@ -491,26 +491,37 @@ def train_ga_oja(conf) -> dict:
             response_duration=conf.response_duration,
         )
 
+    N = conf.n_neurons
+    # Same sqrt(32/N) scaling as train_ga — keeps per-mutation amplitude
+    # proportional to weight init scale sqrt(2/N) across network sizes.
+    mut_std_raw = getattr(conf, 'ga_mutation_std', 0.3)
+    mutation_std = mut_std_raw * np.sqrt(32 / N)
+
+    pop_size = conf.ea_pop_size
+    if getattr(conf, 'ea_auto_pop', False):
+        n_params_est = N * N + conf.obs_dim * N + conf.action_dim * N
+        pop_size = max(pop_size, int(4 * np.sqrt(n_params_est)))
+
     ga = GeneticAlgorithmOja(
-        n_neurons=conf.n_neurons,
+        n_neurons=N,
         obs_dim=conf.obs_dim,
         action_dim=conf.action_dim,
-        pop_size=conf.ea_pop_size,
-        n_elite=max(2, conf.ea_pop_size // 32),
+        pop_size=pop_size,
+        n_elite=max(2, pop_size // 32),
         tournament_k=5,
         crossover_rate=0.7,
         mutation_rate=getattr(conf, 'ga_mutation_rate', 0.05),
-        mutation_std=getattr(conf, 'ga_mutation_std', 0.3),
+        mutation_std=mutation_std,
         n_eval_trials=conf.ea_n_eval_trials,
         seed=conf.seed,
     )
 
     n_params = ga.oja_gene_length
-    print(f"GA-Oja: {conf.n_neurons} neurons, {n_params} params "
-          f"({ga.weight_length} weights + 2 Oja) + {conf.n_neurons} sigma genes")
-    print(f"Task: {task_name} | pop={conf.ea_pop_size}, gens={conf.ea_generations}")
+    print(f"GA-Oja: {N} neurons, {n_params} params "
+          f"({ga.weight_length} weights + 2 Oja) + {N} sigma genes")
+    print(f"Task: {task_name} | pop={pop_size}, gens={conf.ea_generations}")
     print(f"elite={ga.n_elite}, tournament_k={ga.tournament_k}, "
-          f"crossover=blend, mut_std={ga.mutation_std}, "
+          f"crossover=blend, mut_std={ga.mutation_std:.4f} (raw={mut_std_raw}, N-scaled), "
           f"sigma0={ga.mutation_rate}, tau={ga.tau:.4f}, sigma_cap=[0.005,0.15]"
           f", eta_clip=[1e-6,1.0], wmax_clip=[0.1,20.0]")
 

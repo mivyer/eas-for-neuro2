@@ -39,6 +39,24 @@ class Config:
     ga_mutation_std: float = 0.3
     ea_patience: int = 999_999     # early-stop patience (default = off; use --patience N to enable)
 
+    # Dimension-aware scaling (ES + GA)
+    # Dimension-aware scaling flags (ES + GA)
+    #
+    # ea_sigma_scaling: scale initial sigma down by 1/sqrt(n_params/baseline).
+    #   Default False — empirically, the 1/5-success-rule in train_es.py adapts
+    #   sigma to the right range automatically, and starting too small hurts
+    #   early exploration.  Set True if you want a smaller, fixed starting sigma
+    #   (e.g. when sweeping very large networks with --ea-sigma 0.1+).
+    #
+    # ea_auto_pop: pop <- max(ea_pop_size, 4*sqrt(n_params)).
+    #   Provides better gradient-estimate coverage at large N; disabled by default
+    #   because it increases wall-clock time proportionally.
+    #
+    # ea_baseline_params: reference for the sigma-scaling formula.
+    ea_sigma_scaling: bool = False
+    ea_auto_pop: bool = False
+    ea_baseline_params: int = 1344
+
     # BPTT
     bptt_iterations: int = 1000
     bptt_batch_size: int = 64
