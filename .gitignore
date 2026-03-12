@@ -1,4 +1,7 @@
-results/
+# Ignore all results except PNG figures
+results/**
+!results/**/
+!results/**/*.png
 __pycache__/
 *.pyc
 .DS_Store
