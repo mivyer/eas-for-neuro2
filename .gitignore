@@ -1,6 +1,7 @@
 # Ignore all results except PNG figures
 results/**
 !results/**/
+!results/*.png
 !results/**/*.png
 __pycache__/
 *.pyc
