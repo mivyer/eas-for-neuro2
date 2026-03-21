@@ -31,7 +31,7 @@ LAYER_LABELS  = {'W_in': '$W_{in}$', 'W_rec': '$W_{rec}$', 'W_out': '$W_{out}$'}
 
 NBACKS  = [1, 2, 3, 4]
 SEEDS   = [42, 123, 456]
-NEURONS = [32, 64, 128]
+NEURONS = [32]   # 32n gives the clearest rank/allocation contrast
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
@@ -178,56 +178,41 @@ def make_figure(acc, erank, fracs, out_path):
     ax.text(1.22, mid, 'different\nstructure', fontsize=8, color='#444444',
             va='center', style='italic')
 
-    ax.set_ylim(0, 32)
+    ax.set_ylim(0, 36)
     ax.set_ylabel('Effective rank (W_rec, 90% var.)', fontsize=11)
     ax.set_xlabel('N-back level', fontsize=11)
     ax.set_title('B.  Recurrent Weight Structure', fontsize=12, fontweight='bold', loc='left')
     ax.legend(fontsize=9.5, loc='lower left', framealpha=0.9,
               handlelength=1.6, borderpad=0.6)
 
-    # ── Panel C: W_out allocation — all methods ───────────────────────────────
+    # ── Panel C: W_out fraction — all methods, showing BPTT's rising trend ──────
     ax = axes[2]
     style_ax(ax)
 
-    # Show all 3 layers for BPTT as thin background reference lines
-    for layer in ('W_in', 'W_rec', 'W_out'):
-        means = np.array([pooled(fracs[nb]['bptt'][layer])[0] for nb in NBACKS])
-        stds  = np.array([pooled(fracs[nb]['bptt'][layer])[1] for nb in NBACKS])
-        mask  = ~np.isnan(means)
-        c = LAYER_COLORS[layer]
-        ax.plot(x[mask], means[mask], 's-', color=c, lw=2.2, ms=7,
-                label=f'BPTT  {LAYER_LABELS[layer]}', zorder=3)
-        ax.fill_between(x[mask], (means-stds)[mask], (means+stds)[mask],
-                        color=c, alpha=0.15, zorder=2)
-
-    # Overlay EA methods' W_out fraction as faded lines to show contrast
-    for m in ('es', 'ga', 'ga_oja'):
+    for m in METHODS:
         means = np.array([pooled(fracs[nb][m]['W_out'])[0] for nb in NBACKS])
         stds  = np.array([pooled(fracs[nb][m]['W_out'])[1] for nb in NBACKS])
         mask  = ~np.isnan(means)
         c = METHOD_COLORS[m]
-        ax.plot(x[mask], means[mask], '^--', color=c, lw=1.6, ms=6,
-                alpha=0.8, label=f'{METHOD_LABELS[m]}  $W_{{out}}$', zorder=3)
+        ax.plot(x[mask], means[mask], 's-', color=c, lw=2.2, ms=7,
+                label=METHOD_LABELS[m], zorder=3)
         ax.fill_between(x[mask], (means-stds)[mask], (means+stds)[mask],
-                        color=c, alpha=0.08, zorder=2)
+                        color=c, alpha=0.15, zorder=2)
 
-    ax.set_ylim(0, 80)
-    ax.set_ylabel('Weight change fraction (%)', fontsize=11)
+    # Annotate BPTT's rising trend
+    bptt_1 = pooled(fracs[1]['bptt']['W_out'])[0]
+    bptt_4 = pooled(fracs[4]['bptt']['W_out'])[0]
+    ax.annotate('', xy=(4.1, bptt_4), xytext=(4.1, bptt_1),
+                arrowprops=dict(arrowstyle='->', color='#2196F3', lw=1.6))
+    ax.text(4.18, (bptt_1 + bptt_4) / 2, f'+{bptt_4-bptt_1:.0f}%',
+            color='#2196F3', fontsize=9, va='center', fontweight='bold')
+
+    ax.set_ylim(0, 60)
+    ax.set_ylabel('$W_{out}$ weight change fraction (%)', fontsize=11)
     ax.set_xlabel('N-back level', fontsize=11)
-    ax.set_title('C.  Layer-wise Learning Allocation', fontsize=12, fontweight='bold', loc='left')
-
-    # Two-part legend: BPTT layers | EA W_out
-    bptt_handles = [mlines.Line2D([], [], color=LAYER_COLORS[l], lw=2,
-                                   marker='s', ms=6,
-                                   label=f'BPTT {LAYER_LABELS[l]}')
-                    for l in ('W_in', 'W_rec', 'W_out')]
-    ea_handles   = [mlines.Line2D([], [], color=METHOD_COLORS[m], lw=1.6,
-                                   marker='^', ms=6, ls='--', alpha=0.8,
-                                   label=f'{METHOD_LABELS[m]} $W_{{out}}$')
-                    for m in ('es', 'ga', 'ga_oja')]
-    ax.legend(handles=bptt_handles + ea_handles,
-              fontsize=8.5, loc='upper left', framealpha=0.9,
-              ncol=2, handlelength=1.6, borderpad=0.6, labelspacing=0.4)
+    ax.set_title('C.  Output Layer Allocation', fontsize=12, fontweight='bold', loc='left')
+    ax.legend(fontsize=9.5, loc='lower right', framealpha=0.9,
+              handlelength=1.6, borderpad=0.6)
 
     fig.savefig(out_path, dpi=300, bbox_inches='tight', facecolor='white')
     print(f"Saved: {out_path}")
