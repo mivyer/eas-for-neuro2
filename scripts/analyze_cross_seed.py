@@ -19,13 +19,13 @@ NBACKS = [1, 2, 3, 4]
 SEEDS = [42, 123, 456]
 LAYER_COLORS = {'W_in': '#2196F3', 'W_rec': '#FF9800', 'W_out': '#4CAF50'}
 
-def load_all(results_dir):
+def load_all(results_dir, n_neurons=32):
     """Load all experimental data."""
     data = {}
     for nb in NBACKS:
         data[nb] = {}
         for seed in SEEDS:
-            run_dir = os.path.join(results_dir, f"nback{nb}_neurons32_seed{seed}")
+            run_dir = os.path.join(results_dir, f"nback{nb}_neurons{n_neurons}_seed{seed}")
             if not os.path.isdir(run_dir):
                 continue
             data[nb][seed] = {}
@@ -95,7 +95,7 @@ def compute_metrics(data):
     return perf, conn
 
 
-def fig1_accuracy_vs_nback(perf, out_dir):
+def fig1_accuracy_vs_nback(perf, out_dir, n_neurons=32):
     """Line plot: accuracy vs n-back with std error bars."""
     fig, ax = plt.subplots(figsize=(8, 5.5))
     for method in METHODS:
@@ -113,7 +113,7 @@ def fig1_accuracy_vs_nback(perf, out_dir):
     ax.axhline(20, color='gray', linestyle='--', alpha=0.4, label='Chance')
     ax.set_xlabel('N-back Level', fontsize=13)
     ax.set_ylabel('Best Individual Accuracy (%)', fontsize=13)
-    ax.set_title('Performance vs Task Difficulty\n32 neurons, 3 seeds, mean ± std', fontsize=14)
+    ax.set_title(f'Performance vs Task Difficulty\n{n_neurons} neurons, 3 seeds, mean ± std', fontsize=14)
     ax.set_xticks(NBACKS)
     ax.set_ylim(0, 108)
     ax.legend(fontsize=11, loc='lower left')
@@ -124,7 +124,7 @@ def fig1_accuracy_vs_nback(perf, out_dir):
     print("  Saved fig1_accuracy_vs_nback.png")
 
 
-def fig2_layer_fractions(conn, out_dir):
+def fig2_layer_fractions(conn, out_dir, n_neurons=32):
     """Stacked bar: per-layer ΔW fractions across n-back, with std bars."""
     fig, axes = plt.subplots(1, 4, figsize=(18, 5.5), sharey=True)
     for idx, nb in enumerate(NBACKS):
@@ -163,14 +163,14 @@ def fig2_layer_fractions(conn, out_dir):
                        Patch(facecolor=LAYER_COLORS['W_rec'], label='W_rec'),
                        Patch(facecolor=LAYER_COLORS['W_out'], label='W_out')]
     axes[0].legend(handles=legend_elements, fontsize=10, loc='upper left')
-    fig.suptitle('Per-Layer Weight Change Fractions (mean ± std, 3 seeds)', fontsize=15, y=1.02)
+    fig.suptitle(f'Per-Layer Weight Change Fractions (mean ± std, 3 seeds, {n_neurons}n)', fontsize=15, y=1.02)
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, 'fig2_layer_fractions.png'), dpi=300)
     plt.close()
     print("  Saved fig2_layer_fractions.png")
 
 
-def fig3_effective_rank(conn, out_dir):
+def fig3_effective_rank(conn, out_dir, n_neurons=32):
     """Grouped bar: effective rank with std."""
     fig, ax = plt.subplots(figsize=(8, 5.5))
     x = np.arange(len(NBACKS))
@@ -188,10 +188,10 @@ def fig3_effective_rank(conn, out_dir):
     ax.set_xticks(x)
     ax.set_xticklabels([f'{nb}-back' for nb in NBACKS], fontsize=12)
     ax.set_ylabel('Effective Rank of W_rec (90% variance)', fontsize=12)
-    ax.set_title('Effective Rank by Method and Task Difficulty\n32 neurons, mean ± std', fontsize=14)
+    ax.set_title(f'Effective Rank by Method and Task Difficulty\n{n_neurons} neurons, mean ± std', fontsize=14)
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.2, axis='y')
-    ax.set_ylim(0, 25)
+    ax.set_ylim(0, max(25, n_neurons // 2))
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, 'fig3_effective_rank.png'), dpi=300)
     plt.close()
@@ -223,7 +223,7 @@ def fig4_bptt_layer_shift(conn, out_dir):
     print("  Saved fig4_bptt_layer_shift.png")
 
 
-def fig5_total_norm(conn, out_dir):
+def fig5_total_norm(conn, out_dir, n_neurons=32):
     """Total ΔW norm by method across n-back."""
     fig, ax = plt.subplots(figsize=(8, 5.5))
     for method in METHODS:
@@ -237,7 +237,7 @@ def fig5_total_norm(conn, out_dir):
                     label=METHOD_LABELS[method], color=METHOD_COLORS[method])
     ax.set_xlabel('N-back Level', fontsize=13)
     ax.set_ylabel('Total ||ΔW|| (Frobenius norm)', fontsize=13)
-    ax.set_title('Total Weight Change Magnitude\n32 neurons, mean ± std', fontsize=14)
+    ax.set_title(f'Total Weight Change Magnitude\n{n_neurons} neurons, mean ± std', fontsize=14)
     ax.set_xticks(NBACKS)
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.2)
@@ -247,7 +247,7 @@ def fig5_total_norm(conn, out_dir):
     print("  Saved fig5_total_norm.png")
 
 
-def fig6_learning_curves(data, out_dir):
+def fig6_learning_curves(data, out_dir, n_neurons=32):
     """Learning curves with std shading."""
     fig, axes = plt.subplots(1, 4, figsize=(20, 5), sharey=True)
     for idx, nb in enumerate(NBACKS):
@@ -284,7 +284,7 @@ def fig6_learning_curves(data, out_dir):
         ax.set_ylim(0, 108)
         ax.grid(True, alpha=0.2)
     axes[0].legend(fontsize=9, loc='lower right')
-    fig.suptitle('Learning Curves (mean ± std, 3 seeds)', fontsize=15, y=1.02)
+    fig.suptitle(f'Learning Curves (mean ± std, 3 seeds, {n_neurons}n)', fontsize=15, y=1.02)
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, 'fig6_learning_curves.png'), dpi=300)
     plt.close()
@@ -329,12 +329,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', default='results/', help='Path to results directory')
     parser.add_argument('--out-dir', default='results/cross_seed_analysis/', help='Output directory for figures')
+    parser.add_argument('--neurons', type=int, default=32, help='Network size (default 32)')
     args = parser.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
 
-    print("Loading data...")
-    data = load_all(args.results_dir)
+    N = args.neurons
+    print(f"Loading data ({N} neurons)...")
+    data = load_all(args.results_dir, n_neurons=N)
 
     print("Computing metrics...")
     perf, conn = compute_metrics(data)
@@ -342,11 +344,11 @@ if __name__ == '__main__':
     print_tables(perf, conn)
 
     print("\nGenerating figures...")
-    fig1_accuracy_vs_nback(perf, args.out_dir)
-    fig2_layer_fractions(conn, args.out_dir)
-    fig3_effective_rank(conn, args.out_dir)
+    fig1_accuracy_vs_nback(perf, args.out_dir, n_neurons=N)
+    fig2_layer_fractions(conn, args.out_dir, n_neurons=N)
+    fig3_effective_rank(conn, args.out_dir, n_neurons=N)
     fig4_bptt_layer_shift(conn, args.out_dir)
-    fig5_total_norm(conn, args.out_dir)
-    fig6_learning_curves(data, args.out_dir)
+    fig5_total_norm(conn, args.out_dir, n_neurons=N)
+    fig6_learning_curves(data, args.out_dir, n_neurons=N)
 
     print(f"\nAll figures saved to {args.out_dir}")

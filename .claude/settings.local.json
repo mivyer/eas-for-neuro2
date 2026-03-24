@@ -5,7 +5,11 @@
       "Bash(python3 scripts/analyze_connectivity.py --from-results results/nback_32n/)",
       "Bash(python3 scripts/run_experiment.py --method all --n-back 2 --ea-gens 30 --bptt-iters 100 --ea-pop 32 --ea-trials 5 --seed 7 --save)",
       "Bash(python3 trainers/train_ga.py)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --out-dir results/analysis/cross_seed_64n/ --neurons 64)",
+      "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --out-dir results/analysis/cross_seed_32n/ --neurons 32)",
+      "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --neurons 64 --out-dir results/analysis/cross_seed_64n/)",
+      "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --neurons 32 --out-dir results/analysis/cross_seed_32n/)"
     ]
   }
 }
