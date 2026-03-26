@@ -1,18 +1,9 @@
 #!/usr/bin/env python3
-# scripts/run_experiment.py
 """
-Main entry point for all thesis experiments.
+Run thesis experiments. Output auto-named results/nback{N}_neurons{M}_seed{S}/.
 
-Fast (no disk writes — for iteration and sanity checks):
-    python scripts/run_experiment.py --method all --n-back 1 --ea-gens 50 --bptt-iters 100
-
-Full save (for real experiments you want to keep):
     python scripts/run_experiment.py --method all --n-back 2 --save
-    python scripts/run_experiment.py --method all --n-back 5 --neurons 64 --save
-    python scripts/run_experiment.py --method all --n-back 2 --save --output results/custom/
-
-Output directory is auto-named as:
-    results/nback{N}_neurons{M}_seed{S}/
+    python scripts/run_experiment.py --method all --n-back 1 --ea-gens 50 --bptt-iters 100
 """
 
 import sys
@@ -24,13 +15,10 @@ import subprocess
 
 import numpy as np
 
-# Add project root to path so imports work from scripts/
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import Config
 
-
-# ── Persistence helpers ───────────────────────────────────────────────────────
 
 def _git_hash() -> str:
     try:
@@ -44,7 +32,6 @@ def _git_hash() -> str:
 
 
 def _save_config(conf: Config, exp_dir: str) -> None:
-    """Write config.json with full Config + timestamp + git commit hash."""
     os.makedirs(exp_dir, exist_ok=True)
     meta = conf.to_dict()
     meta['timestamp'] = datetime.datetime.now().isoformat()
@@ -54,17 +41,6 @@ def _save_config(conf: Config, exp_dir: str) -> None:
 
 
 def _save_method(result: dict, method: str, exp_dir: str) -> None:
-    """
-    Save one trained method's data to {exp_dir}/{method}/.
-
-    Writes:
-        weights_init.npz      — W_rec, W_in, W_out at initialisation
-        weights_final.npz     — W_rec, W_in, W_out after training (evolved genotype for GA-Oja)
-        weights_post_oja.npz  — post-Oja weights after within-trial plasticity (GA-Oja only)
-        history.json          — per-iteration/generation learning curves
-        model.pt              — PyTorch state_dict              (BPTT only)
-        best_gene.npy         — flat genotype vector             (ES / GA only)
-    """
     method_dir = os.path.join(exp_dir, method)
     os.makedirs(method_dir, exist_ok=True)
 
@@ -105,23 +81,8 @@ def _auto_exp_name(conf: Config) -> str:
     return f"nback{conf.n_back}_neurons{conf.n_neurons}_seed{conf.seed}"
 
 
-# ── Main experiment runner ────────────────────────────────────────────────────
-
 def run(conf: Config, method: str = "ga", run_bptt: bool = True,
-        save: bool = False, run_analysis: bool = True) -> dict:
-    """
-    Train with specified method(s) and optionally save results.
-
-    Args:
-        conf:         full experiment Config
-        method:       'es' | 'ga' | 'ga_oja' | 'ga_stdp' | 'bptt_lif' | 'all'
-        run_bptt:     include rate-coded BPTT baseline
-        save:         write full results directory to conf.output_dir
-        run_analysis: compute connectivity figures (only when save=True)
-
-    Returns:
-        dict: {method_name: result_dict, ...}
-    """
+        save: bool = False, run_analysis: bool = False) -> dict:
     if save:
         os.makedirs(conf.output_dir, exist_ok=True)
 
@@ -143,55 +104,35 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
     results = {}
     timings = {}
 
-    # --- ES ---
     if method in ("es", "all"):
-        print("\n" + "-" * 60)
-        print("Training ES (OpenAI Evolution Strategy)...")
-        print("-" * 60)
         from trainers.train_es import train_es
         t0 = time.time()
         results['es'] = train_es(conf)
         timings['es'] = time.time() - t0
         print(f"ES time: {timings['es']:.1f}s\n")
 
-    # --- GA ---
     if method in ("ga", "all"):
-        print("-" * 60)
-        print("Training GA (Genetic Algorithm)...")
-        print("-" * 60)
         from trainers.train_ga import train_ga
         t0 = time.time()
         results['ga'] = train_ga(conf)
         timings['ga'] = time.time() - t0
         print(f"GA time: {timings['ga']:.1f}s\n")
 
-    # --- GA-Oja (Hebbian plasticity; part of 'all') ---
     if method in ("ga_oja", "all"):
-        print("-" * 60)
-        print("Training GA-Oja (Genetic Algorithm + Oja's Rule)...")
-        print("-" * 60)
         from trainers.train_ga_oja import train_ga_oja
         t0 = time.time()
         results['ga_oja'] = train_ga_oja(conf)
         timings['ga_oja'] = time.time() - t0
         print(f"GA-Oja time: {timings['ga_oja']:.1f}s\n")
 
-    # --- GA+STDP (opt-in only; uses LIF internally) ---
     if method == "ga_stdp":
-        print("-" * 60)
-        print("Training GA+STDP (Baldwin Effect)...")
-        print("-" * 60)
         from trainers.train_ga_stdp import train_ga_stdp
         t0 = time.time()
         results['ga_stdp'] = train_ga_stdp(conf)
         timings['ga_stdp'] = time.time() - t0
         print(f"GA+STDP time: {timings['ga_stdp']:.1f}s\n")
 
-    # --- BPTT rate-coded ---
     if run_bptt:
-        print("-" * 60)
-        print("Training BPTT (rate-coded)...")
-        print("-" * 60)
         from trainers.train_bptt import train_bptt
         t0 = time.time()
         results['bptt'] = train_bptt(conf, use_lif=False)
@@ -199,11 +140,7 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
         if results['bptt']:
             print(f"BPTT time: {timings['bptt']:.1f}s\n")
 
-    # --- BPTT-LIF (opt-in only) ---
     if method == "bptt_lif":
-        print("-" * 60)
-        print("Training BPTT-LIF (surrogate gradient)...")
-        print("-" * 60)
         from trainers.train_bptt import train_bptt
         t0 = time.time()
         results['bptt_lif'] = train_bptt(conf, use_lif=True)
@@ -211,7 +148,6 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
         if results['bptt_lif']:
             print(f"BPTT-LIF time: {timings['bptt_lif']:.1f}s\n")
 
-    # --- Print results table ---
     print("\n" + "=" * 60)
     print("RESULTS")
     print("=" * 60)
@@ -229,7 +165,6 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
             acc = r['history']['accuracy'][-1]
             print(f"  {name:>8s}: acc={acc:.1%}  fit={fit:+.4f}  time={t:.0f}s")
 
-    # --- Save to disk ---
     if save:
         _save_config(conf, conf.output_dir)
         for name, r in results.items():
@@ -244,55 +179,42 @@ def run(conf: Config, method: str = "ga", run_bptt: bool = True,
     return results
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
-
 if __name__ == "__main__":
     import argparse
-    p = argparse.ArgumentParser(
-        description="Run thesis experiments",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
+    p = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('--task',    choices=['nback', 'wm', 'evidence', 'robot'], default='nback')
     p.add_argument('--neurons', type=int, default=32)
     p.add_argument('--n-back',  type=int, default=2)
-    p.add_argument('--method',
-                   choices=['es', 'ga', 'ga_oja', 'ga_stdp', 'bptt_lif', 'all'],
-                   default='ga',
-                   help="'all' = es+ga+ga_oja+bptt. ga_stdp/bptt_lif are opt-in.")
-    p.add_argument('--no-bptt', action='store_true',
-                   help='Skip rate-coded BPTT baseline')
-    p.add_argument('--save', action='store_true',
-                   help='Write full results directory (weights, history, figures). '
-                        'Without this flag nothing is written to disk.')
-    p.add_argument('--no-analysis', action='store_true',
-                   help='Skip connectivity figures even when --save is used')
-    p.add_argument('--output', type=str, default=None,
-                   help='Output directory override. Default: results/nback{N}_neurons{M}_seed{S}')
-    p.add_argument('--ea-gens',    type=int, default=300)
-    p.add_argument('--ea-pop',     type=int, default=128)
-    p.add_argument('--ea-trials',  type=int, default=20)
-    p.add_argument('--patience',   type=int, default=999_999,
-                   help='Early-stop GA/GA-Oja after this many gens with no improvement '
-                        '(default: off — runs full generations)')
-    p.add_argument('--bptt-iters', type=int, default=1000)
+    p.add_argument('--method',  choices=['es', 'ga', 'ga_oja', 'ga_stdp', 'bptt_lif', 'all'],
+                   default='ga')
+    p.add_argument('--no-bptt',       action='store_true')
+    p.add_argument('--save',          action='store_true')
+    p.add_argument('--with-analysis', action='store_true',
+                   help='Generate per-run connectivity figures')
+    p.add_argument('--output',     type=str,   default=None)
+    p.add_argument('--ea-gens',    type=int,   default=300)
+    p.add_argument('--ea-pop',     type=int,   default=128)
+    p.add_argument('--ea-trials',  type=int,   default=20)
+    p.add_argument('--patience',   type=int,   default=999_999)
+    p.add_argument('--bptt-iters', type=int,   default=1000)
     p.add_argument('--bptt-lr',    type=float, default=1e-3)
-    p.add_argument('--mut-std',    type=float, default=None,
-                   help='Override ga_mutation_std (default 0.3; try 0.05-0.1 for evidence)')
-    p.add_argument('--seed',       type=int, default=42)
-    p.add_argument('--seq-length',  type=int, default=20,
-                   help='Trial length in timesteps')
-    # Evidence accumulation params (only used when --task evidence)
+    p.add_argument('--mut-std',    type=float, default=None)
+    p.add_argument('--scale-sigma', action='store_true',
+                   help='Scale sigma by 1/sqrt(n_params/baseline); recommended for 128n+')
+    p.add_argument('--scale-pop',   action='store_true',
+                   help='Scale pop by sqrt(n_params/baseline)')
+    p.add_argument('--l2-coef',    type=float, default=None)
+    p.add_argument('--seed',       type=int,   default=42)
+    p.add_argument('--seq-length', type=int,   default=20)
     p.add_argument('--evidence-strength', type=float, default=0.1)
     p.add_argument('--noise-std',         type=float, default=0.5)
     p.add_argument('--trial-length',      type=int,   default=50)
     p.add_argument('--response-length',   type=int,   default=5)
     args = p.parse_args()
 
-    # Auto-set obs/action dims for each task
     obs_dim    = 2 if args.task == "robot" else 5
     action_dim = 2 if args.task == "robot" else 5
 
-    # Build a temporary conf for auto-naming (output_dir filled next)
     conf = Config(
         task=args.task,
         n_neurons=args.neurons,
@@ -311,11 +233,17 @@ if __name__ == "__main__":
         noise_std=args.noise_std,
         trial_length=args.trial_length,
         response_length=args.response_length,
-        output_dir='',  # resolved below
+        output_dir='',
     )
     if args.mut_std is not None:
         conf.ga_mutation_std = args.mut_std
+    if args.scale_sigma:
+        conf.ea_sigma_scaling = True
+    if args.scale_pop:
+        conf.ea_auto_pop = True
+    if args.l2_coef is not None:
+        conf.ea_l2_coef = args.l2_coef
     conf.output_dir = args.output or f"results/{_auto_exp_name(conf)}"
 
     run(conf, method=args.method, run_bptt=not args.no_bptt,
-        save=args.save, run_analysis=not args.no_analysis)
+        save=args.save, run_analysis=args.with_analysis)

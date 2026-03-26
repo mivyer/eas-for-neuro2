@@ -9,7 +9,12 @@
       "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --out-dir results/analysis/cross_seed_64n/ --neurons 64)",
       "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --out-dir results/analysis/cross_seed_32n/ --neurons 32)",
       "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --neurons 64 --out-dir results/analysis/cross_seed_64n/)",
-      "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --neurons 32 --out-dir results/analysis/cross_seed_32n/)"
+      "Bash(python3 scripts/analyze_cross_seed.py --results-dir results/nback/ --neurons 32 --out-dir results/analysis/cross_seed_32n/)",
+      "Bash(pip install:*)",
+      "Bash(python3 scripts/statistical_tests.py --results-dir results/nback/ --neurons 32 64 --out results/statistical_tests_summary.txt)",
+      "Bash(python3 -m pip install scipy -q)",
+      "Bash(python3 -c \"from scipy import stats; print\\(''''ok''''\\)\")",
+      "Bash(chmod +x \"/Users/ivy/Downloads/eas-for-neuro-main 2/scripts/run_128n_nback_scaled.sh\")"
     ]
   }
 }
