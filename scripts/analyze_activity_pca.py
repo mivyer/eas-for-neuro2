@@ -25,10 +25,12 @@ METHODS = ["bptt", "es", "ga", "ga_oja"]
 METHOD_LABELS = {"bptt": "BPTT", "es": "ES", "ga": "GA", "ga_oja": "GA+Oja"}
 COLORS = {"bptt": "#2196F3", "es": "#FF9800", "ga": "#4CAF50", "ga_oja": "#E91E63"}
 
-NBACK_LEVELS = [1, 2, 4]
+NBACK_LEVELS = [1, 2, 3, 4]
 NEURON_SIZES = [32, 64, 128, 256]
 N_TRIALS = 8
 SEED = 42
+# All 10 pub seeds
+ALL_SEEDS = [42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021]
 
 # Search paths for weights (checked in order)
 def _weight_path(task_tag: str, nn: int, seed: int, method: str) -> Path | None:
@@ -89,62 +91,86 @@ def pca_thresholds(activity: np.ndarray) -> dict:
 # Main analysis loop
 # ---------------------------------------------------------------------------
 
-def run_analysis(save: bool = False):
+def run_analysis(seeds: list[int] = None):
+    """Run PCA analysis over multiple seeds; returns per-seed rows and aggregated rows."""
+    if seeds is None:
+        seeds = [SEED]
     rng = np.random.default_rng(SEED)
-    results = []  # list of dicts
 
-    # --- N-back conditions ---
-    for nb in NBACK_LEVELS:
-        task = LetterNBackTask(n_back=nb, seq_length=20)
-        tag = f"nback{nb}"
+    per_seed = []  # one dict per (seed, method, task, n_back, neurons)
+
+    for seed in seeds:
+        # --- N-back conditions ---
+        for nb in NBACK_LEVELS:
+            task = LetterNBackTask(n_back=nb, seq_length=20)
+            tag = f"nback{nb}"
+            for nn in NEURON_SIZES:
+                for method in METHODS:
+                    path = _weight_path(tag, nn, seed, method)
+                    if path is None:
+                        continue
+                    policy = load_policy(path)
+                    activity = collect_activity(policy, task, N_TRIALS, rng)
+                    stats = pca_thresholds(activity)
+                    per_seed.append({"seed": seed, "task": "nback", "n_back": nb,
+                                     "neurons": nn, "method": method, **stats})
+
+        # --- Robot arm conditions ---
+        task_robot = RobotArmTask(seq_length=20)
+        tag_robot = "robot_T20"
         for nn in NEURON_SIZES:
-            row = {"task": "nback", "n_back": nb, "neurons": nn}
-            found_any = False
             for method in METHODS:
-                path = _weight_path(tag, nn, SEED, method)
+                path = _weight_path(tag_robot, nn, seed, method)
                 if path is None:
                     continue
-                found_any = True
                 policy = load_policy(path)
-                activity = collect_activity(policy, task, N_TRIALS, rng)
+                activity = collect_activity(policy, task_robot, N_TRIALS, rng)
                 stats = pca_thresholds(activity)
-                results.append({**row, "method": method, **stats})
-            if not found_any:
-                print(f"  [skip] {tag} neurons={nn} — no weights found")
+                per_seed.append({"seed": seed, "task": "robot", "n_back": None,
+                                 "neurons": nn, "method": method, **stats})
 
-    # --- Robot arm conditions ---
-    task_robot = RobotArmTask(seq_length=20)
-    tag_robot = "robot_T20"
-    for nn in NEURON_SIZES:
-        row = {"task": "robot", "n_back": None, "neurons": nn}
-        found_any = False
-        for method in METHODS:
-            path = _weight_path(tag_robot, nn, SEED, method)
-            if path is None:
-                continue
-            found_any = True
-            policy = load_policy(path)
-            activity = collect_activity(policy, task_robot, N_TRIALS, rng)
-            stats = pca_thresholds(activity)
-            results.append({**row, "method": method, **stats})
-        if not found_any:
-            print(f"  [skip] robot neurons={nn} — no weights found")
+    # --- Aggregate across seeds ---
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for r in per_seed:
+        key = (r["task"], r["n_back"], r["neurons"], r["method"])
+        groups[key].append(r)
 
-    return results
+    aggregated = []
+    for (task, nb, nn, method), rows in groups.items():
+        pc80s = [r["pc80"] for r in rows]
+        pc90s = [r["pc90"] for r in rows]
+        pc95s = [r["pc95"] for r in rows]
+        aggregated.append({
+            "task": task, "n_back": nb, "neurons": nn, "method": method,
+            "n_seeds": len(rows),
+            "pc80_mean": np.mean(pc80s), "pc80_std": np.std(pc80s),
+            "pc90_mean": np.mean(pc90s), "pc90_std": np.std(pc90s),
+            "pc95_mean": np.mean(pc95s), "pc95_std": np.std(pc95s),
+            # keep first seed's cum_var for curve plots
+            "cum_var": rows[0]["cum_var"],
+            "n_dims": nn,
+        })
+
+    return per_seed, aggregated
 
 
 # ---------------------------------------------------------------------------
 # Print table
 # ---------------------------------------------------------------------------
 
-def print_table(results):
-    header = f"{'Method':<10} {'Task':<8} {'N-back':>6} {'Neurons':>7} {'PC80':>5} {'PC90':>5} {'PC95':>5}"
+def print_table(aggregated):
+    header = (f"{'Method':<10} {'Task':<8} {'N-back':>6} {'Neurons':>7} {'Seeds':>5} "
+              f"{'PC80':>12} {'PC90':>12} {'PC95':>12}")
     print("\n" + header)
     print("-" * len(header))
-    for r in results:
+    for r in sorted(aggregated, key=lambda x: (x["task"], x["n_back"] or 0, x["neurons"], x["method"])):
         nb = str(r["n_back"]) if r["n_back"] is not None else "—"
+        pc80 = f"{r['pc80_mean']:.1f}±{r['pc80_std']:.1f}"
+        pc90 = f"{r['pc90_mean']:.1f}±{r['pc90_std']:.1f}"
+        pc95 = f"{r['pc95_mean']:.1f}±{r['pc95_std']:.1f}"
         print(f"{METHOD_LABELS[r['method']]:<10} {r['task']:<8} {nb:>6} {r['neurons']:>7} "
-              f"{r['pc80']:>5} {r['pc90']:>5} {r['pc95']:>5}")
+              f"{r['n_seeds']:>5} {pc80:>12} {pc90:>12} {pc95:>12}")
     print()
 
 
@@ -152,21 +178,20 @@ def print_table(results):
 # Figures
 # ---------------------------------------------------------------------------
 
-def make_figures(results, save: bool = False):
+def make_figures(aggregated, save: bool = False):
     import matplotlib
     if save:
         matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    # --- Figure 1: cumulative variance curves ---
-    # rows = neuron sizes, cols = (nback1, nback2, nback4, robot)
-    conditions = [("nback", 1), ("nback", 2), ("nback", 4), ("robot", None)]
-    col_labels = ["N-back 1", "N-back 2", "N-back 4", "Robot arm"]
+    # --- Figure 1: cumulative variance curves (seed-0 representative) ---
+    conditions = [("nback", nb) for nb in NBACK_LEVELS] + [("robot", None)]
+    col_labels = [f"N-back {nb}" for nb in NBACK_LEVELS] + ["Robot arm"]
     nrows = len(NEURON_SIZES)
     ncols = len(conditions)
 
-    fig1, axes = plt.subplots(nrows, ncols, figsize=(16, 3.5 * nrows), sharey=True)
-    fig1.suptitle("Cumulative explained variance of hidden-state PCA", fontsize=14, y=1.01)
+    fig1, axes = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3.5 * nrows), sharey=True)
+    fig1.suptitle("Cumulative explained variance of hidden-state PCA (representative seed)", fontsize=13, y=1.01)
 
     for i, nn in enumerate(NEURON_SIZES):
         for j, (task_name, nb) in enumerate(conditions):
@@ -181,24 +206,23 @@ def make_figures(results, save: bool = False):
             ax.text(0.98, 0.04, f"N={nn}", transform=ax.transAxes,
                     ha="right", va="bottom", fontsize=8, color="gray")
 
-            for r in results:
+            for r in aggregated:
                 if r["task"] == task_name and r["n_back"] == nb and r["neurons"] == nn:
                     m = r["method"]
                     cum = r["cum_var"]
                     xs = np.arange(1, len(cum) + 1)
+                    pc90 = r["pc90_mean"]
                     ax.plot(xs, cum, color=COLORS[m], lw=1.8, label=METHOD_LABELS[m])
-                    ax.axvline(r["pc90"], color=COLORS[m], lw=0.8, ls=":", alpha=0.7)
-                    ax.text(r["pc90"] + 0.3, 0.91, str(r["pc90"]),
+                    ax.axvline(pc90, color=COLORS[m], lw=0.8, ls=":", alpha=0.7)
+                    ax.text(pc90 + 0.3, 0.91, f"{pc90:.1f}",
                             color=COLORS[m], fontsize=7, va="bottom")
 
-            # legend only on first row, last column
             if i == 0 and j == ncols - 1:
                 ax.legend(fontsize=8, loc="lower right")
 
     fig1.tight_layout()
 
-    # --- Figure 2: bar chart summary (PCs for 90%) ---
-    # Build x-axis: one group per (task, neurons)
+    # --- Figure 2: bar chart summary (PCs for 90%) with error bars ---
     group_keys = []
     for nn in NEURON_SIZES:
         for task_name, nb in conditions:
@@ -218,17 +242,23 @@ def make_figures(results, save: bool = False):
     xs = np.arange(n_groups)
 
     fig2, ax2 = plt.subplots(figsize=(max(14, n_groups * 0.8), 5))
-    ax2.set_title("PCs required for 90% explained variance", fontsize=13)
+    ax2.set_title("PCs required for 90% explained variance (mean ± SD across seeds)", fontsize=13)
 
     for mi, method in enumerate(METHODS):
-        vals = []
+        vals, errs = [], []
         for task_name, nb, nn in group_keys:
-            match = [r for r in results
+            match = [r for r in aggregated
                      if r["method"] == method and r["task"] == task_name
                      and r["n_back"] == nb and r["neurons"] == nn]
-            vals.append(match[0]["pc90"] if match else np.nan)
-        ax2.bar(xs + offsets[mi], vals, width=bar_w,
-                color=COLORS[method], label=METHOD_LABELS[method], alpha=0.85)
+            if match:
+                vals.append(match[0]["pc90_mean"])
+                errs.append(match[0]["pc90_std"])
+            else:
+                vals.append(np.nan)
+                errs.append(0)
+        ax2.bar(xs + offsets[mi], vals, width=bar_w, yerr=errs,
+                color=COLORS[method], label=METHOD_LABELS[method], alpha=0.85,
+                error_kw={"elinewidth": 1.2, "capsize": 2.5})
 
     ax2.set_xticks(xs)
     ax2.set_xticklabels(group_labels, fontsize=8)
@@ -262,22 +292,28 @@ if __name__ == "__main__":
                    metavar="N", help="Network sizes to include")
     p.add_argument("--trials", type=int, default=N_TRIALS,
                    help="Trials per condition")
-    p.add_argument("--seed", type=int, default=SEED)
+    p.add_argument("--seed", type=int, default=None,
+                   help="Single seed (overrides --seeds)")
+    p.add_argument("--seeds", nargs="+", type=int, default=ALL_SEEDS,
+                   metavar="S", help="Seeds to aggregate over (default: all 10 pub seeds)")
+    p.add_argument("--all-seeds", action="store_true",
+                   help="Use all 10 pub seeds (same as default)")
     args = p.parse_args()
 
     NBACK_LEVELS[:] = args.nback_levels
     NEURON_SIZES[:] = args.neurons
     N_TRIALS = args.trials
-    SEED = args.seed
 
-    print("Running PCA analysis...")
-    results = run_analysis(save=args.save)
+    seeds = [args.seed] if args.seed is not None else args.seeds
 
-    if not results:
+    print(f"Running PCA analysis across {len(seeds)} seed(s): {seeds}")
+    per_seed, aggregated = run_analysis(seeds=seeds)
+
+    if not aggregated:
         print("No results found — check that weight files exist in results/")
         sys.exit(1)
 
-    print_table(results)
+    print_table(aggregated)
 
     if not args.no_fig:
-        make_figures(results, save=args.save)
+        make_figures(aggregated, save=args.save)
