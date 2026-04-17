@@ -118,6 +118,12 @@ def main():
         with open(cfg_path) as f:
             cfg = json.load(f)
 
+        task = cfg.get("task", "nback")
+        # Skip robot arm entries — they share n_back values with nback runs
+        # and would corrupt the aggregated accuracy table
+        if task != "nback":
+            continue
+
         key = exp_dir.name  # e.g. nback2_neurons32_seed42
         entry = {
             "n_back": cfg.get("n_back"),

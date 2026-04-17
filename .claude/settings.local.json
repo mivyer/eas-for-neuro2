@@ -14,7 +14,8 @@
       "Bash(python3 scripts/statistical_tests.py --results-dir results/nback/ --neurons 32 64 --out results/statistical_tests_summary.txt)",
       "Bash(python3 -m pip install scipy -q)",
       "Bash(python3 -c \"from scipy import stats; print\\(''''ok''''\\)\")",
-      "Bash(chmod +x \"/Users/ivy/Downloads/eas-for-neuro-main 2/scripts/run_128n_nback_scaled.sh\")"
+      "Bash(chmod +x \"/Users/ivy/Downloads/eas-for-neuro-main 2/scripts/run_128n_nback_scaled.sh\")",
+      "Bash(python3 scripts/make_thesis_figures_v2.py)"
     ]
   }
 }
