@@ -734,7 +734,7 @@ def fig8_pca_dims(pub_dir, out_dir, n_trials=100):
     print(f"Saved: {fpath}")
 
 
-# ── Figure 8b: PCA Summary — both tasks ────────────────────────────────────────
+# ── Figure 8b: PCA Summary — both tasks 
 
 def fig_pca_all_tasks(pub_dir, out_dir, n_trials=50):
     """Polished PCA summary across n-back + robot arm tasks.

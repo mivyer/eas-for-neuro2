@@ -17,10 +17,8 @@ from models.rsnn_policy import RSNNPolicy
 from envs.letter_nback import LetterNBackTask
 from envs.robot_arm import RobotArmTask
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
 
+# Config
 METHODS = ["bptt", "es", "ga", "ga_oja"]
 METHOD_LABELS = {"bptt": "BPTT", "es": "ES", "ga": "GA", "ga_oja": "GA+Oja"}
 COLORS = {"bptt": "#2196F3", "es": "#FF9800", "ga": "#4CAF50", "ga_oja": "#E91E63"}
@@ -46,9 +44,8 @@ def _weight_path(task_tag: str, nn: int, seed: int, method: str) -> Path | None:
     return None
 
 
-# ---------------------------------------------------------------------------
+
 # Helpers
-# ---------------------------------------------------------------------------
 
 def load_policy(path: Path) -> RSNNPolicy:
     d = np.load(path)
@@ -86,10 +83,7 @@ def pca_thresholds(activity: np.ndarray) -> dict:
         "n_dims": activity.shape[1],
     }
 
-
-# ---------------------------------------------------------------------------
 # Main analysis loop
-# ---------------------------------------------------------------------------
 
 def run_analysis(seeds: list[int] = None):
     """Run PCA analysis over multiple seeds; returns per-seed rows and aggregated rows."""
